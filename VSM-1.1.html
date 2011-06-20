@@ -20,6 +20,7 @@ response to search words.</title>
 <ul>
 
 	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#changes">CHANGES</a></li>
 	<li><a href="#description">DESCRIPTION</a></li>
 	<li><a href="#can_this_module_be_used_for_general_text_retrieval">CAN THIS MODULE BE USED FOR GENERAL TEXT RETRIEVAL?</a></li>
 	<li><a href="#how_does_one_deal_with_very_large_libraries_corpora">HOW DOES ONE DEAL WITH VERY LARGE LIBRARIES/CORPORA?</a></li>
@@ -28,6 +29,7 @@ response to search words.</title>
 	<li><a href="#required">REQUIRED</a></li>
 	<li><a href="#examples">EXAMPLES</a></li>
 	<li><a href="#export">EXPORT</a></li>
+	<li><a href="#so_that_you_do_not_lose_relevancy_judgments">SO THAT YOU DO NOT LOSE RELEVANCY JUDGMENTS</a></li>
 	<li><a href="#bugs">BUGS</a></li>
 	<li><a href="#installation">INSTALLATION</a></li>
 	<li><a href="#thanks">THANKS</a></li>
@@ -312,6 +314,17 @@ response to search words.</p>
 <p>
 </p>
 <hr />
+<h1><a name="changes">CHANGES</a></h1>
+<p>With Version 1.1, you can access the retrieval precision results so that
+you can compare two different retrieval algorithms (VSM or LSA with
+different choices for some of the constructor parameters) with significance
+testing. Version 1.0 merely displayed these results in a terminal
+window. The new script <strong>significance_testing.pl</strong> in the 'examples'
+directory illustrates significance testing with Randomization and with
+Student's Paired t-Test.</p>
+<p>
+</p>
+<hr />
 <h1><a name="description">DESCRIPTION</a></h1>
 <p><strong>Algorithm::VSM</strong> is a <em>perl5</em> module for constructing a Vector Space
 Model (VSM) or a Latent Semantic Analysis Model (LSA) of a collection of
@@ -369,39 +382,44 @@ formatted.</p>
 </p>
 <hr />
 <h1><a name="how_does_one_deal_with_very_large_libraries_corpora">HOW DOES ONE DEAL WITH VERY LARGE LIBRARIES/CORPORA?</a></h1>
-<p>It is not uncommon for large software libraries to consist of tens of
-thousands of documents that include source-code files, documentation files,
-README files, configuration files, etc.  The bug-localization work
-presented recently by Shivani Rao and this author at the 2011 Mining
-Software Repository conference (MSR11) was based on a relatively
-small iBUGS dataset involving 6546 documents and a vocabulary size of
-7553 unique words. (Here is a link to this work:
-<a href="http://portal.acm.org/citation.cfm?id=1985451">http://portal.acm.org/citation.cfm</a>.  Also note that the iBUGS
-dataset was originally put together by V. Dallmeier and T. Zimmermann for
-the evaluation of automated bug detection and localization tools.)  If <code>V</code>
-is the size of the vocabulary and <code>M</code> the number of the documents in the
-corpus, the size of each vector will be <code>V</code> and size of the term-frequency
-matrix for the entire corpus will be of size <code>V</code>x<code>M</code>.  So if you were to
-duplicate the bug localization experiments in
-<a href="http://portal.acm.org/citation.cfm?id=1985451">http://portal.acm.org/citation.cfm</a> you would be dealing with
-vectors of size 7553 and a term-frequency matrix of size 7553x6546.
-Extrapolating these numbers to really large libraries/corpora, we are
-obviously talking about very large matrices for SVD decomposition.  For
-large libraries/corpora, it would be best to store away the model in a disk
-file and to base all subsequent retrievals on the disk-stored models.  The
-'examples' directory contains scripts that carry out retrievals on the
-basis of disk-based models.  Further speedup in retrieval can be achieved
-by using LSA to create reduced-dimensionality representations for the
-documents and by basing retrievals on the stored versions of such
-reduced-dimensionality representations.</p>
+<p>It is not uncommon for large software libraries to consist
+of tens of thousands of documents that include source-code
+files, documentation files, README files, configuration
+files, etc.  The bug-localization work presented recently by
+Shivani Rao and this author at the 2011 Mining Software
+Repository conference (MSR11) was based on a relatively
+small iBUGS dataset involving 6546 documents and a
+vocabulary size of 7553 unique words. (Here is a link to
+this work: <a href="http://portal.acm.org/citation.cfm?id=1985451">http://portal.acm.org/citation.cfm</a>.
+Also note that the iBUGS dataset was originally put together
+by V. Dallmeier and T. Zimmermann for the evaluation of
+automated bug detection and localization tools.)  If <code>V</code> is
+the size of the vocabulary and <code>M</code> the number of the
+documents in the corpus, the size of each vector will be
+<code>V</code> and size of the term-frequency matrix for the entire
+corpus will be <code>V</code>x<code>M</code>.  So if you were to duplicate the
+bug localization experiments in
+<a href="http://portal.acm.org/citation.cfm?id=1985451">http://portal.acm.org/citation.cfm</a> you would
+be dealing with vectors of size 7553 and a term-frequency
+matrix of size 7553x6546.  Extrapolating these numbers to
+really large libraries/corpora, we are obviously talking
+about very large matrices for SVD decomposition.  For large
+libraries/corpora, it would be best to store away the model
+in a disk file and to base all subsequent retrievals on the
+disk-stored models.  The 'examples' directory contains
+scripts that carry out retrievals on the basis of disk-based
+models.  Further speedup in retrieval can be achieved by
+using LSA to create reduced-dimensionality representations
+for the documents and by basing retrievals on the stored
+versions of such reduced-dimensionality representations.</p>
 <p>
 </p>
 <hr />
 <h1><a name="estimating_retrieval_performance_with_precision_vs__recall_calculations">ESTIMATING RETRIEVAL PERFORMANCE WITH PRECISION VS. RECALL CALCULATIONS</a></h1>
 <p>The performance of a retrieval algorithm is typically measured by two
-properties, <code>Precision</code> and <code>Recall</code>, at a given rank <code>r</code>.  As mentioned
-in the <a href="http://portal.acm.org/citation.cfm?id=1985451">http://portal.acm.org/citation.cfm</a> publication, at
-given rank <code>r</code>, Precision is the ratio of the number of retrieved
+properties: <code>Precision at rank</code> and <code>Recall at rank</code>.  As mentioned in
+the <a href="http://portal.acm.org/citation.cfm?id=1985451">http://portal.acm.org/citation.cfm</a> publication, at a
+given rank <code>r</code>, <code>Precision</code> is the ratio of the number of retrieved
 documents that are relevant to the total number of retrieved documents up
 to that rank.  And, along the same lines, <code>Recall</code> at a given rank <code>r</code> is
 the ratio of the number of retrieved documents that are relevant to the
@@ -413,16 +431,17 @@ the value of MAP should be 1.0.  On the other hand, for purely random
 retrieval from a corpus, the value of MAP will be inversely proportional to
 the size of the corpus.  (See the discussion in
 <a href="http://RVL4.ecn.purdue.edu/~kak/SignifanceTesting.pdf">http://RVL4.ecn.purdue.edu/~kak/SignifanceTesting.pdf</a> for further
-explanation on these performance evaluators.)  This module includes methods
-that allow you to carry out these performance measurements using the
-relevancy judgments supplied through a disk file.  If human-supplied
-relevancy judgments are not available, the module will be happy to estimate
-relevancies for you just by determining the number of query words that
-exist in a document.  Note, however, that relevancy judgments estimated in
-this manner cannot be trusted. That is because ultimately it is the humans
-who are the best judges of the relevancies of documents to queries.  The
-humans bring to bear semantic considerations on the relevancy determination
-problem that are beyond the scope of this module.</p>
+explanation on these retrieval precision evaluators.)  This module includes
+methods that allow you to carry out these retrieval accuracy measurements
+using the relevancy judgments supplied through a disk file.  If
+human-supplied relevancy judgments are not available, the module will be
+happy to estimate relevancies for you just by determining the number of
+query words that exist in a document.  Note, however, that relevancy
+judgments estimated in this manner cannot be trusted. That is because
+ultimately it is the humans who are the best judges of the relevancies of
+documents to queries.  The humans bring to bear semantic considerations on
+the relevancy determination problem that are beyond the scope of this
+module.</p>
 <p>
 </p>
 <hr />
@@ -761,6 +780,21 @@ into the program by calling</p>
 <p>These relevance judgments will be read from a file that is named with the
 <code>relevancy_file</code> constructor parameter.</p>
 </dd>
+<dt><strong><a name="get_query_sorted_average_precision_for_queries" class="item"><strong>get_query_sorted_average_precision_for_queries():</strong></a></strong></dt>
+
+<dd>
+<p>If you want to run significance tests on the retrieval
+accuracies you obtain on a given corpus and with different
+algorithms (VSM or LSA with different choices for the
+constructor parameters), you would need access to the
+average precision data for a set of queries. You can get
+this data in your own script by calling</p>
+<pre>
+    $vsm-&gt;get_query_sorted_average_precision_for_queries();</pre>
+<p>The script <code>significance_testing.pl</code> in the 'examples'
+directory shows how you can use this method for significance
+testing.</p>
+</dd>
 </dl>
 <p>
 </p>
@@ -820,7 +854,7 @@ you can run the script</p>
 <pre>
     retrieve_with_disk_based_LSA.pl</pre>
 <p>The retrieval performance of such a script would be faster since the LSA
-model would NOT need to constructed for each new query.</p>
+model would NOT need to be constructed for each new query.</p>
 </dd>
 <dt><strong><a name="for_precision_and_recall_calculations_with_vsm" class="item"><strong>For Precision and Recall Calculations with VSM:</strong></a></strong></dt>
 
@@ -867,12 +901,37 @@ run the script:</p>
 <p>This script will print out the average precisions for the different test
 queries and calculate the MAP metric of retrieval accuracy.</p>
 </dd>
+<dt><strong><a name="to_carry_out_significance_tests_on_the_retrieval_precision_results_with_randomization_or_with_student_s_paired_t_test" class="item"><strong>To carry out significance tests on the retrieval precision results
+with Randomization or with Student's Paired t-Test:</strong></a></strong></dt>
+
+<dd>
+<pre>
+    significance_testing.pl  randomization</pre>
+<p>or</p>
+<pre>
+    significance_testing.pl  t-test</pre>
+<p>Significance testing consists of forming a null hypothesis that the two
+retrieval algorithms you are considering are the same from a black-box
+perspective and then calculating what is known as a <code>p-value</code>.  If the
+<code>p-value</code> is less than, say, 0.05, you reject the null hypothesis.</p>
+</dd>
 </dl>
 <p>
 </p>
 <hr />
 <h1><a name="export">EXPORT</a></h1>
 <p>None by design.</p>
+<p>
+</p>
+<hr />
+<h1><a name="so_that_you_do_not_lose_relevancy_judgments">SO THAT YOU DO NOT LOSE RELEVANCY JUDGMENTS</a></h1>
+<p>You have to be careful when carrying out Precision verses Recall
+calculations if you do not wish to lose the previously created relevancy
+judgments. Invoking the method <a href="#estimate_doc_relevancies"><code>estimate_doc_relevancies()</code></a> in your own
+script will cause the file <code>relevancy.txt</code> to be overwritten.  If you have
+created a relevancy database and stored it in a file called, say,
+<code>relevancy.txt</code>, you should make a backup copy of this file before
+executing a script that calls <a href="#estimate_doc_relevancies"><code>estimate_doc_relevancies()</code></a>.</p>
 <p>
 </p>
 <hr />
@@ -900,10 +959,9 @@ filter.</p>
 </p>
 <hr />
 <h1><a name="thanks">THANKS</a></h1>
-<p>Many thanks are owed to Shivani Rao for sharing with me her
-deep insights in IR-based retrieval.  She was also of much
-help with the debugging of this module by bringing to bear
-on its output her amazing software forensic skills.</p>
+<p>Many thanks are owed to Shivani Rao for sharing with me her deep insights
+in IR.  She was also of much help with the debugging of this module by
+bringing to bear on its output her amazing software forensic skills.</p>
 <p>
 </p>
 <hr />

@@ -38,7 +38,7 @@ my $vsm = Algorithm::VSM->new(
                    stop_words_file          => $stop_words_file,
                    max_number_retrievals    => 10,
                    want_stemming            => 1,      # default is no stemming
-#                   debug               => 1,
+#                  debug                    => 1,
           );
 
 $vsm->get_corpus_vocabulary_and_word_counts();

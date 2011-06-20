@@ -91,10 +91,27 @@
      precisions for the different test queries and calculate the MAP metric
      of retrieval accuracy.
 
+
 (8)  To do the same as above but for the case of LSA, run the script
 
 
           calculate_precision_and_recall_from_file_based_relevancies_for_LSA.pl
 
 
+(9)  To carry out significance testing for comparing two different retrieval
+     algorithms (VSM or LSA with different values for some of the
+     constructor parameters), run the script
 
+          significance_testing.pl  randomization
+    
+     or 
+
+
+          significance_testing.pl  t-test
+
+     As currently set up, the case-study incorporated in the script
+     significance_testing.pl is for two different versions of the LSA
+     algorithm with two different thresholds for the important parameter
+     lsa_svd_threshold.  Note that the command-line argument determines
+     which type of significance test will be carried out, the one based on
+     randomization or the one based on student-t.

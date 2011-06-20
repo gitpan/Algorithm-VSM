@@ -40,8 +40,7 @@ my $query_file      = "test_queries.txt";      # This file contains the queries
 my $relevancy_file   = "relevancy.txt";        # The generated relevancies will
                                                # be stored in this file.
 
-
-my $vsm = Algorithm::VSM->new( 
+my $lsa = Algorithm::VSM->new( 
                    corpus_directory    => $corpus_dir,
                    corpus_vocab_db     => $corpus_vocab_db,
                    doc_vectors_db      => $doc_vectors_db,
@@ -49,7 +48,7 @@ my $vsm = Algorithm::VSM->new(
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
-                   lsa_svd_threshold   => 0.01,     # Used for rejecting singular
+                   lsa_svd_threshold   => 0.05,     # Used for rejecting singular
                                                     # values that are smaller than
                                                     # this threshold fraction of
                                                     # the largest singular value.
@@ -62,36 +61,36 @@ my $vsm = Algorithm::VSM->new(
                    relevancy_file      => $relevancy_file,   # Relevancy judgments
                                                              # are deposited in 
                                                              # this file.
-#                   debug               => 1,
+#                   debug              => 1,
           );
 
-$vsm->get_corpus_vocabulary_and_word_counts();
+$lsa->get_corpus_vocabulary_and_word_counts();
 
-$vsm->generate_document_vectors();
+$lsa->generate_document_vectors();
 
 #    Uncomment the following statement if you want to see the corpus
 #    vocabulary:
-#$vsm->display_corpus_vocab();
+#$lsa->display_corpus_vocab();
 
 #    Uncomment the following statement if you want to see the individual
 #    document vectors:
-#$vsm->display_doc_vectors();
+#$lsa->display_doc_vectors();
 
-$vsm->construct_lsa_model();
+$lsa->construct_lsa_model();
 
 #    The argument below is the file that contains the queries to be used
 #    for precision-recall analysis.  The format of this file must be
 #    according to what is shown in the file test_queries.txt in this
 #    directory:
-$vsm->estimate_doc_relevancies("test_queries.txt");
+$lsa->estimate_doc_relevancies("test_queries.txt");
 
 #    Uncomment the following statement if you wish to see the list of all
 #    the documents relevant to each of the queries:
-#$vsm->display_doc_relevancies();
+#$lsa->display_doc_relevancies();
 
-$vsm->precision_and_recall_calculator('lsa');
+$lsa->precision_and_recall_calculator('lsa');
 
-$vsm->display_precision_vs_recall_for_queries();
+$lsa->display_precision_vs_recall_for_queries();
 
-$vsm->display_map_values_for_queries();
+$lsa->display_map_values_for_queries();
 

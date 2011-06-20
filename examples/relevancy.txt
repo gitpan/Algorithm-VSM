@@ -22,15 +22,17 @@ q11   =>   ExceptionUsage4.java ChatServer.java SpecialInt.java Manager.java Exc
 
 q12   =>   DBFriends1.java DBFriends2.java
 
-q14   =>   ExtendedInterface.java MultiPolymorphism.java AbstractShapeIncremental.java RenderGraphics.java EventThreadDemo2.java EventThreadDemo.java
+q13   =>   Interleaved.java Manager.java DBFriends1.java DBFriends2.java
 
-q15   =>   RotatingRect.java NestedInterface.java ExtendedInterface.java MultiPolymorphism.java Manager.java AbstractShapeIncremental.java EventThreadDemo2.java IntegerGeneric.java EventThreadDemo.java
+q15   =>   ExtendedInterface.java MultiPolymorphism.java AbstractShapeIncremental.java RenderGraphics.java EventThreadDemo2.java EventThreadDemo.java
 
-q16   =>   ExtendedInterface.java MultiPolymorphism.java AbstractShapeIncremental.java RenderGraphics.java
+q16   =>   RotatingRect.java NestedInterface.java ExtendedInterface.java MultiPolymorphism.java Manager.java AbstractShapeIncremental.java EventThreadDemo2.java IntegerGeneric.java EventThreadDemo.java
 
-q17   =>   IntegerGeneric.java CloneClassTypeArr.java Integer.java Interleaved.java Manager.java GridBagLayoutTest.java AbstractShapeIncremental.java
+q17   =>   ExtendedInterface.java MultiPolymorphism.java AbstractShapeIncremental.java RenderGraphics.java
 
-q18   =>   SynchedSwaps.java UnsynchedSwaps.java LinkedList.java ExtendedInterface.java MultiPolymorphism.java FlowLayoutTest.java CardLayoutTest.java WriteIntToFile.java WriteStringToFile.java LinkedListGeneric.java WindowWithMenu.java GridLayoutTest.java BorderLayoutTest.java
+q18   =>   IntegerGeneric.java CloneClassTypeArr.java Integer.java Interleaved.java Manager.java GridBagLayoutTest.java AbstractShapeIncremental.java
 
-q19   =>   LinkedList.java PrintObj.java SynchedFileIO.java ReadStringFromFile.java RenderGraphics.java UnsynchedFileIO.java ListOps.java StringSort.java ChatServer.java Polymorph.java SetOps.java MapHist.java CharEscapes.java WriteStringToFile.java WindowWithMenu.java BlockInheritance.java ListMixedType.java CloneClassTypeArr.java StringFind.java Interleaved.java Manager.java ObjectIO.java TermIO.java CollectionMax.java CrazyWindow.java StringLiteralUniqueness.java BlockInheritance2.java IntegerGeneric.java DefaultInit2.java WriteIntToFile.java Integer.java LinkedListGeneric.java CollectionMaxGeneric.java SlideShowApplet.java CloneArray.java
+q19   =>   SynchedSwaps.java UnsynchedSwaps.java LinkedList.java ExtendedInterface.java MultiPolymorphism.java FlowLayoutTest.java CardLayoutTest.java WriteIntToFile.java WriteStringToFile.java LinkedListGeneric.java WindowWithMenu.java GridLayoutTest.java BorderLayoutTest.java
+
+q20   =>   LinkedList.java PrintObj.java SynchedFileIO.java ReadStringFromFile.java RenderGraphics.java UnsynchedFileIO.java ListOps.java StringSort.java ChatServer.java Polymorph.java SetOps.java MapHist.java CharEscapes.java WriteStringToFile.java WindowWithMenu.java BlockInheritance.java ListMixedType.java CloneClassTypeArr.java StringFind.java Interleaved.java Manager.java ObjectIO.java TermIO.java CollectionMax.java CrazyWindow.java StringLiteralUniqueness.java BlockInheritance2.java IntegerGeneric.java DefaultInit2.java WriteIntToFile.java Integer.java LinkedListGeneric.java CollectionMaxGeneric.java SlideShowApplet.java CloneArray.java
 

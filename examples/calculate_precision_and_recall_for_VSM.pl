@@ -35,7 +35,6 @@ my $query_file      = "test_queries.txt";      # This file contains the queries
 my $relevancy_file   = "relevancy.txt";        # The generated relevancies will
                                                # be stored in this file.
 
-
 my $vsm = Algorithm::VSM->new( 
                    corpus_directory    => $corpus_dir,
                    corpus_vocab_db     => $corpus_vocab_db,
@@ -52,7 +51,7 @@ my $vsm = Algorithm::VSM->new(
                    relevancy_file      => $relevancy_file,   # Relevancy judgments
                                                              # are deposited in 
                                                              # this file.
-#                   debug               => 1,
+#                   debug              => 1,
           );
 
 $vsm->get_corpus_vocabulary_and_word_counts();

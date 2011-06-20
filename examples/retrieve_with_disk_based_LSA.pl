@@ -28,26 +28,26 @@ my $corpus_vocab_db = "corpus_vocab_db";
 my $doc_vectors_db  = "doc_vectors_db";
 my $lsa_doc_vectors_db = "lsa_doc_vectors_db";
 
-my $vsm = Algorithm::VSM->new( 
+my $lsa = Algorithm::VSM->new( 
                    corpus_vocab_db          => $corpus_vocab_db,
                    doc_vectors_db           => $doc_vectors_db,
                    lsa_doc_vectors_db       => $lsa_doc_vectors_db,
                    max_number_retrievals    => 10,
-#                   debug               => 1,
+#                  debug                    => 1,
           );
 
-$vsm->upload_lsa_model_from_disk();
+$lsa->upload_lsa_model_from_disk();
 
 #   Uncomment the following if you would like to see the corpus vocabulary:
-#$vsm->display_corpus_vocab();
+#$lsa->display_corpus_vocab();
 
 #   Uncomment the following if you would like to see the doc vectors for
 #   each of the documents in the corpus:
-#$vsm->display_doc_vectors();
+#$lsa->display_doc_vectors();
 
-$vsm->construct_lsa_model();
+$lsa->construct_lsa_model();
 
-my $retrievals = $vsm->retrieve_with_lsa( \@query );
+my $retrievals = $lsa->retrieve_with_lsa( \@query );
 
-$vsm->display_retrievals( $retrievals );
+$lsa->display_retrievals( $retrievals );
 

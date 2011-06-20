@@ -30,8 +30,8 @@ my $doc_vectors_db  = "doc_vectors_db";
 my $vsm = Algorithm::VSM->new( 
                    corpus_vocab_db           => $corpus_vocab_db, 
                    doc_vectors_db            => $doc_vectors_db,
-                   max_number_retrievals    => 10,
-#                   debug               => 1,
+                   max_number_retrievals     => 10,
+#                  debug                     => 1,
           );
 
 $vsm->upload_vsm_model_from_disk();

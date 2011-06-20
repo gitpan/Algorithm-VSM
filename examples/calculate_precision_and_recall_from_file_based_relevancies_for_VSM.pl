@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-### calculate_precision_and_recall_from_disk_based_relevancies.pl
+### calculate_precision_and_recall_from_file_based_relevancies.pl
 
 #use lib '../blib/lib', '../blib/arch';
 

@@ -1,18 +1,15 @@
 package Algorithm::VSM;
 
 #---------------------------------------------------------------------------
-# Copyright (c) 2011 Avinash Kak. All rights reserved.  This
-# program is free software.  You may modify and/or
-# distribute it under the same terms as Perl itself.  This
-# copyright notice must remain attached to the file.
+# Copyright (c) 2011 Avinash Kak. All rights reserved.  This program is
+# free software.  You may modify and/or distribute it under the same terms
+# as Perl itself.  This copyright notice must remain attached to the file.
 #
-# Algorithm::VSM is a pure-Perl implementation for
-# retrieving documents from software libraries that match a
-# list of words in a query.  Document are matched with
-# queries using a similarity criterion that depends on
+# Algorithm::VSM is a pure-Perl implementation for retrieving documents
+# from software libraries that match a list of words in a query.  Document
+# are matched with queries using a similarity criterion that depends on
 # whether your model for the entire library is based on the
-# full-dimensionality VSM or on the reduced-dimensionality
-# LSA.
+# full-dimensionality VSM or on the reduced-dimensionality LSA.
 # ---------------------------------------------------------------------------
 
 use 5.10.0;
@@ -24,13 +21,13 @@ use Fcntl;
 use Storable;
 use Cwd;
 
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
 #############################   Constructor  ########################
 
-#  Constructor for constructing VSM or LSA model of a corpus.  The object
-#  returned by the constructor can be used for retrieving documents from
-#  the corpus in response to queries.
+#  Constructor for constructing a VSM or LSA model of a corpus.  The model
+#  instance returned by the constructor can be used for retrieving
+#  documents from the corpus in response to queries.
 sub new { 
     my ($class, %args) = @_;
     my @params = keys %args;
@@ -75,7 +72,7 @@ sub new {
 }
 
 
-################    Get corpus vocabulary and word counts  ##################
+#################    Get corpus vocabulary and word counts  ################
 
 sub get_corpus_vocabulary_and_word_counts {
     my $self = shift;
@@ -103,6 +100,22 @@ sub get_corpus_vocabulary_and_word_counts {
     print "\n\nVocabulary size:  $self->{_vocab_size}\n\n"
             if $self->{_debug};
 }
+
+sub display_corpus_vocab {
+    my $self = shift;
+    die "corpus vocabulary not yet constructed"
+        unless keys %{$self->{_vocab_hist}};
+    print "\n\nDisplaying corpus vocabulary:\n\n";
+    foreach (sort keys %{$self->{_vocab_hist}}){
+        my $outstring = sprintf("%30s     %d", $_,$self->{_vocab_hist}->{$_});
+        print "$outstring\n";
+    }
+    my $vocab_size = scalar( keys %{$self->{_vocab_hist}} );
+    print "\nSize of the corpus vocabulary: $vocab_size\n\n";
+}
+
+
+####################  Generate Document Vectors  ########################
 
 sub generate_document_vectors {
     my $self = shift;
@@ -134,18 +147,8 @@ sub display_doc_vectors {
     }
 }
 
-sub display_corpus_vocab {
-    my $self = shift;
-    die "corpus vocabulary not yet constructed"
-        unless keys %{$self->{_vocab_hist}};
-    print "\n\nDisplaying corpus vocabulary:\n\n";
-    foreach (sort keys %{$self->{_vocab_hist}}){
-        my $outstring = sprintf("%30s     %d", $_,$self->{_vocab_hist}->{$_});
-        print "$outstring\n";
-    }
-    my $vocab_size = scalar( keys %{$self->{_vocab_hist}} );
-    print "\nSize of the corpus vocabulary: $vocab_size\n\n";
-}
+
+#########################  Retrieve with VSM Model  #####################
 
 sub retrieve_with_vsm {
     my $self = shift;
@@ -179,6 +182,9 @@ sub retrieve_with_vsm {
     }
     return \%retrievals;
 }
+
+
+############### Upload a Previously Constructed Model  #################
 
 sub upload_vsm_model_from_disk {
     my $self = shift;
@@ -216,6 +222,9 @@ sub upload_lsa_model_from_disk {
     $self->{_doc_vecs_trunc_lsa} = retrieve($self->{_lsa_doc_vectors_db});
 }
 
+
+##################### Display Retrieval Results  #######################
+
 sub display_retrievals {
     my $self = shift;
     my $retrievals = shift;
@@ -230,7 +239,7 @@ sub display_retrievals {
 }
 
 
-
+#####################    Directory Scanner      #######################
 
 sub _scan_directory {
     my $self = shift;
@@ -274,6 +283,9 @@ sub _scan_file {
     close( IN );
 }
 
+
+##################### LSA Modeling and Retrieval ##########################
+
 sub construct_lsa_model {
     my $self = shift;
     if (!$self->{_corpus_doc_vectors} and -s $self->{_doc_vectors_db}) { 
@@ -295,16 +307,16 @@ sub construct_lsa_model {
     my $index = return_index_of_last_value_above_threshold($SIGMA, 
                                           $self->{_lsa_svd_threshold});
     my $SIGMA_trunc = $SIGMA->slice("0:$index")->sever;
-    print "SVD's Trucated SIGMA: " . $SIGMA_trunc . "\n" if $self->{_debug};
+    print "SVD's Truncated SIGMA: " . $SIGMA_trunc . "\n" if $self->{_debug};
 
     # When you measure the size of a matrix in PDL, the zeroth dimension
     # is considered to be along the horizontal and the one-th dimension
-    # along the rows.  This is the opposite of how we want to look at
+    # along the rows.  This is opposite of how we want to look at
     # matrices.  For a matrix of size MxN, we mean M rows and N columns.
     # With this 'rows x columns' convention for matrix size, if you had
-    # check the size of, say, U matrix, you would call
-#    my @size = ( $U->getdim(1), $U->getdim(0) );
-#    print "\nsize of U: @size\n";
+    # to check the size of, say, U matrix, you would call
+#   my @size = ( $U->getdim(1), $U->getdim(0) );
+#   print "\nsize of U: @size\n";
 
     my $U_trunc = $U->slice("0:$index,:")->sever;
     my $V_trunc = $V->slice("0:$index,0:$index")->sever;    
@@ -415,6 +427,9 @@ sub _construct_doc_vector {
     $self->{_corpus_doc_vectors}->{$file_path_name} = \%document_vector;
 }
 
+
+#########################   Drop Stop Words  ##########################
+
 sub _drop_stop_words {
     my $self = shift;
     open( IN, "$self->{_working_directory}/$self->{_stop_words_file}")
@@ -428,6 +443,9 @@ sub _drop_stop_words {
         unshift @{$self->{_stop_words}}, $_;
     }
 }
+
+
+#########################  Support Methods  #########################
 
 sub _doc_vec_comparator {
     my $self = shift;
@@ -525,8 +543,8 @@ sub estimate_doc_relevancies {
         @relevancy_list_for_query = 
                         keys %{$self->{_relevancy_estimates}->{$_}};
         print OUT "$_   =>   @relevancy_list_for_query\n\n"; 
-        print "\n\nNumber of relevant docs for query $_: " . 
-                         scalar(@relevancy_list_for_query) . "\n\n";
+        print "Number of relevant docs for query $_: " . 
+                         scalar(@relevancy_list_for_query) . "\n";
     }
 }
 
@@ -777,6 +795,21 @@ sub display_precision_vs_recall_for_queries {
     }
     print "\n\n";
 }
+
+sub get_query_sorted_average_precision_for_queries {
+    my $self = shift;
+    die "You must first invoke precision_and_recall_calculator function" 
+        unless scalar(keys %{$self->{_map_vals_for_queries}});
+    my @average_precisions_for_queries = ();
+    foreach my $query (sort 
+                         {get_integer_suffix($a) <=> get_integer_suffix($b)} 
+                         keys %{$self->{_map_vals_for_queries}}) {
+        my $output = sprintf "%.3f", $self->{_map_vals_for_queries}->{$query};
+        push @average_precisions_for_queries, $output;
+    }
+    return \@average_precisions_for_queries;
+}
+
 
 ###########################  Utility Routines  #####################
 
@@ -1184,6 +1217,16 @@ response to search words.
     constructor parameters such as 'lsa_svd_threshold'.
 
 
+=head1 CHANGES
+
+With Version 1.1, you can access the retrieval precision results so that
+you can compare two different retrieval algorithms (VSM or LSA with
+different choices for some of the constructor parameters) with significance
+testing. Version 1.0 merely displayed these results in a terminal
+window. The new script B<significance_testing.pl> in the 'examples'
+directory illustrates significance testing with Randomization and with
+Student's Paired t-Test.
+
 =head1 DESCRIPTION
 
 B<Algorithm::VSM> is a I<perl5> module for constructing a Vector Space
@@ -1245,39 +1288,44 @@ formatted.
 
 =head1 HOW DOES ONE DEAL WITH VERY LARGE LIBRARIES/CORPORA?
 
-It is not uncommon for large software libraries to consist of tens of
-thousands of documents that include source-code files, documentation files,
-README files, configuration files, etc.  The bug-localization work
-presented recently by Shivani Rao and this author at the 2011 Mining
-Software Repository conference (MSR11) was based on a relatively
-small iBUGS dataset involving 6546 documents and a vocabulary size of
-7553 unique words. (Here is a link to this work:
-L<http://portal.acm.org/citation.cfm?id=1985451>.  Also note that the iBUGS
-dataset was originally put together by V. Dallmeier and T. Zimmermann for
-the evaluation of automated bug detection and localization tools.)  If C<V>
-is the size of the vocabulary and C<M> the number of the documents in the
-corpus, the size of each vector will be C<V> and size of the term-frequency
-matrix for the entire corpus will be of size C<V>xC<M>.  So if you were to
-duplicate the bug localization experiments in
-L<http://portal.acm.org/citation.cfm?id=1985451> you would be dealing with
-vectors of size 7553 and a term-frequency matrix of size 7553x6546.
-Extrapolating these numbers to really large libraries/corpora, we are
-obviously talking about very large matrices for SVD decomposition.  For
-large libraries/corpora, it would be best to store away the model in a disk
-file and to base all subsequent retrievals on the disk-stored models.  The
-'examples' directory contains scripts that carry out retrievals on the
-basis of disk-based models.  Further speedup in retrieval can be achieved
-by using LSA to create reduced-dimensionality representations for the
-documents and by basing retrievals on the stored versions of such
-reduced-dimensionality representations.
+It is not uncommon for large software libraries to consist
+of tens of thousands of documents that include source-code
+files, documentation files, README files, configuration
+files, etc.  The bug-localization work presented recently by
+Shivani Rao and this author at the 2011 Mining Software
+Repository conference (MSR11) was based on a relatively
+small iBUGS dataset involving 6546 documents and a
+vocabulary size of 7553 unique words. (Here is a link to
+this work: L<http://portal.acm.org/citation.cfm?id=1985451>.
+Also note that the iBUGS dataset was originally put together
+by V. Dallmeier and T. Zimmermann for the evaluation of
+automated bug detection and localization tools.)  If C<V> is
+the size of the vocabulary and C<M> the number of the
+documents in the corpus, the size of each vector will be
+C<V> and size of the term-frequency matrix for the entire
+corpus will be C<V>xC<M>.  So if you were to duplicate the
+bug localization experiments in
+L<http://portal.acm.org/citation.cfm?id=1985451> you would
+be dealing with vectors of size 7553 and a term-frequency
+matrix of size 7553x6546.  Extrapolating these numbers to
+really large libraries/corpora, we are obviously talking
+about very large matrices for SVD decomposition.  For large
+libraries/corpora, it would be best to store away the model
+in a disk file and to base all subsequent retrievals on the
+disk-stored models.  The 'examples' directory contains
+scripts that carry out retrievals on the basis of disk-based
+models.  Further speedup in retrieval can be achieved by
+using LSA to create reduced-dimensionality representations
+for the documents and by basing retrievals on the stored
+versions of such reduced-dimensionality representations.
 
 
 =head1 ESTIMATING RETRIEVAL PERFORMANCE WITH PRECISION VS. RECALL CALCULATIONS
 
 The performance of a retrieval algorithm is typically measured by two
-properties, C<Precision> and C<Recall>, at a given rank C<r>.  As mentioned
-in the L<http://portal.acm.org/citation.cfm?id=1985451> publication, at
-given rank C<r>, Precision is the ratio of the number of retrieved
+properties: C<Precision at rank> and C<Recall at rank>.  As mentioned in
+the L<http://portal.acm.org/citation.cfm?id=1985451> publication, at a
+given rank C<r>, C<Precision> is the ratio of the number of retrieved
 documents that are relevant to the total number of retrieved documents up
 to that rank.  And, along the same lines, C<Recall> at a given rank C<r> is
 the ratio of the number of retrieved documents that are relevant to the
@@ -1289,16 +1337,17 @@ the value of MAP should be 1.0.  On the other hand, for purely random
 retrieval from a corpus, the value of MAP will be inversely proportional to
 the size of the corpus.  (See the discussion in
 L<http://RVL4.ecn.purdue.edu/~kak/SignifanceTesting.pdf> for further
-explanation on these performance evaluators.)  This module includes methods
-that allow you to carry out these performance measurements using the
-relevancy judgments supplied through a disk file.  If human-supplied
-relevancy judgments are not available, the module will be happy to estimate
-relevancies for you just by determining the number of query words that
-exist in a document.  Note, however, that relevancy judgments estimated in
-this manner cannot be trusted. That is because ultimately it is the humans
-who are the best judges of the relevancies of documents to queries.  The
-humans bring to bear semantic considerations on the relevancy determination
-problem that are beyond the scope of this module.
+explanation on these retrieval precision evaluators.)  This module includes
+methods that allow you to carry out these retrieval accuracy measurements
+using the relevancy judgments supplied through a disk file.  If
+human-supplied relevancy judgments are not available, the module will be
+happy to estimate relevancies for you just by determining the number of
+query words that exist in a document.  Note, however, that relevancy
+judgments estimated in this manner cannot be trusted. That is because
+ultimately it is the humans who are the best judges of the relevancies of
+documents to queries.  The humans bring to bear semantic considerations on
+the relevancy determination problem that are beyond the scope of this
+module.
 
 
 =head1 METHODS
@@ -1655,6 +1704,22 @@ into the program by calling
 These relevance judgments will be read from a file that is named with the
 C<relevancy_file> constructor parameter.
 
+=item B<get_query_sorted_average_precision_for_queries():>
+
+If you want to run significance tests on the retrieval
+accuracies you obtain on a given corpus and with different
+algorithms (VSM or LSA with different choices for the
+constructor parameters), you would need access to the
+average precision data for a set of queries. You can get
+this data in your own script by calling
+
+    $vsm->get_query_sorted_average_precision_for_queries();
+
+The script C<significance_testing.pl> in the 'examples'
+directory shows how you can use this method for significance
+testing.
+
+
 =back
 
 
@@ -1715,7 +1780,7 @@ you can run the script
     retrieve_with_disk_based_LSA.pl
 
 The retrieval performance of such a script would be faster since the LSA
-model would NOT need to constructed for each new query.
+model would NOT need to be constructed for each new query.
 
 =item B<For Precision and Recall Calculations with VSM:>
 
@@ -1763,12 +1828,36 @@ run the script:
 This script will print out the average precisions for the different test
 queries and calculate the MAP metric of retrieval accuracy.
 
+=item B<To carry out significance tests on the retrieval precision results
+with Randomization or with Student's Paired t-Test:>
+
+    significance_testing.pl  randomization
+
+or
+
+    significance_testing.pl  t-test
+
+Significance testing consists of forming a null hypothesis that the two
+retrieval algorithms you are considering are the same from a black-box
+perspective and then calculating what is known as a C<p-value>.  If the
+C<p-value> is less than, say, 0.05, you reject the null hypothesis.
+
 =back
 
 
 =head1 EXPORT
 
 None by design.
+
+=head1 SO THAT YOU DO NOT LOSE RELEVANCY JUDGMENTS
+
+You have to be careful when carrying out Precision verses Recall
+calculations if you do not wish to lose the previously created relevancy
+judgments. Invoking the method C<estimate_doc_relevancies()> in your own
+script will cause the file C<relevancy.txt> to be overwritten.  If you have
+created a relevancy database and stored it in a file called, say,
+C<relevancy.txt>, you should make a backup copy of this file before
+executing a script that calls C<estimate_doc_relevancies()>.
 
 =head1 BUGS
 
@@ -1794,10 +1883,9 @@ if you have root access.  If not,
 
 =head1 THANKS
 
-Many thanks are owed to Shivani Rao for sharing with me her
-deep insights in IR-based retrieval.  She was also of much
-help with the debugging of this module by bringing to bear
-on its output her amazing software forensic skills.
+Many thanks are owed to Shivani Rao for sharing with me her deep insights
+in IR.  She was also of much help with the debugging of this module by
+bringing to bear on its output her amazing software forensic skills.
 
 =head1 AUTHOR
 

@@ -39,7 +39,7 @@ my $query_file      = "test_queries.txt";      # This file contains the queries
 my $relevancy_file   = "relevancy.txt";        # The humans-supplied relevancies
                                                # will be read from this file.
 
-my $vsm = Algorithm::VSM->new( 
+my $lsa = Algorithm::VSM->new( 
                    corpus_directory    => $corpus_dir,
                    corpus_vocab_db     => $corpus_vocab_db,
                    doc_vectors_db      => $doc_vectors_db,
@@ -55,31 +55,31 @@ my $vsm = Algorithm::VSM->new(
 #                   debug               => 1,
           );
 
-$vsm->get_corpus_vocabulary_and_word_counts();
+$lsa->get_corpus_vocabulary_and_word_counts();
 
-$vsm->generate_document_vectors();
+$lsa->generate_document_vectors();
 
 #    Uncomment the following statement if you want to see the corpus
 #    vocabulary:
-#$vsm->display_corpus_vocab();
+#$lsa->display_corpus_vocab();
 
 #    Uncomment the following statement if you want to see the individual
 #    document vectors:
-#$vsm->display_doc_vectors();
+#$lsa->display_doc_vectors();
 
-$vsm->construct_lsa_model();
+$lsa->construct_lsa_model();
 
-$vsm->upload_document_relevancies_from_file();  # The format of the relevancy
+$lsa->upload_document_relevancies_from_file();  # The format of the relevancy
                                                 # file must be as shown in 
                                                 # relevance.txt
 
 #    Uncomment the following statement if you wish to see the list of all
 #    the documents relevant to each of the queries:
-$vsm->display_doc_relevancies();
+$lsa->display_doc_relevancies();
 
-$vsm->precision_and_recall_calculator('lsa');
+$lsa->precision_and_recall_calculator('lsa');
 
-$vsm->display_precision_vs_recall_for_queries();
+$lsa->display_precision_vs_recall_for_queries();
 
-$vsm->display_map_values_for_queries();
+$lsa->display_map_values_for_queries();
 
