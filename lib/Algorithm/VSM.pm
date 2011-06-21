@@ -21,7 +21,7 @@ use Fcntl;
 use Storable;
 use Cwd;
 
-our $VERSION = '1.1';
+our $VERSION = '1.2';
 
 #############################   Constructor  ########################
 
@@ -508,7 +508,8 @@ sub _similarity_to_query {
 
 sub estimate_doc_relevancies {
     my $self = shift;
-    $self->{_query_file} = shift;
+    die "You did not set the 'query_file' parameter in the constructor"
+        unless $self->{_query_file};
     open( IN, $self->{_query_file} )
                or die "unable to open the query file $self->{_query_file}: $!";
     croak "\n\nYou need to specify a name for the relevancy file in \n" .
@@ -1017,7 +1018,7 @@ response to search words.
     that end in '_db' are for naming the database files in which the LSA
     model will be stored.  We have already mentioned the role played by the
     parameters 'corpus_vocab_db,' and 'doc_vectors_db (see the explanation
-    that goes with the previous construct call example).  The database
+    that goes with the previous constructor call example).  The database
     related parameter 'lsa_doc_vectors_db' is for naming the file in which
     we will store the reduced-dimensionality document vectors for the LSA
     model.  This would allow fast LSA-based search to be carried out
@@ -1219,13 +1220,16 @@ response to search words.
 
 =head1 CHANGES
 
+Version 1.2 includes a code correction and some general code and
+documentation cleanup.
+
 With Version 1.1, you can access the retrieval precision results so that
 you can compare two different retrieval algorithms (VSM or LSA with
 different choices for some of the constructor parameters) with significance
-testing. Version 1.0 merely displayed these results in a terminal
-window. The new script B<significance_testing.pl> in the 'examples'
-directory illustrates significance testing with Randomization and with
-Student's Paired t-Test.
+testing. (Version 1.0 merely sent those results to standard output,
+typically your terminal window.)  In Version 1.1, the new script
+B<significance_testing.pl> in the 'examples' directory illustrates
+significance testing with Randomization and with Student's Paired t-Test.
 
 =head1 DESCRIPTION
 
@@ -1255,9 +1259,8 @@ were applied to the corpus. And, lastly, (5) Using a similarity metric to
 return the set of documents that are most similar to the query vector.  The
 commonly used similarity metric is one based on the cosine distance between
 two vectors.  Also note that all the vectors mentioned here are of the same
-size, the size of the vocabulary extracted from the corpus.  An element of
-a vector is the frequency of the occurrence of the word corresponding to
-that position in the vector.
+size, the size of the vocabulary.  An element of a vector is the frequency
+of occurrence of the word corresponding to that position in the vector.
 
 LSA modeling is a small variation on VSM modeling.  Now you take VSM
 modeling one step further by subjecting the term-frequency matrix for the
@@ -1266,7 +1269,7 @@ of the singular values (usually the N largest for some value of N), you can
 construct reduced-dimensionality vectors for the documents and the queries.
 In VSM, as mentioned above, the size of the document and the query vectors
 is equal to the size of the vocabulary.  For large corpora, this size may
-involve tens of thousands elements --- this can slow down the VSM modeling
+involve tens of thousands of words --- this can slow down the VSM modeling
 and retrieval process.  So you are very likely to get faster performance
 with retrieval based on LSA modeling, especially if you store the model
 once constructed in a database file on the disk and carry out retrievals
@@ -1288,36 +1291,31 @@ formatted.
 
 =head1 HOW DOES ONE DEAL WITH VERY LARGE LIBRARIES/CORPORA?
 
-It is not uncommon for large software libraries to consist
-of tens of thousands of documents that include source-code
-files, documentation files, README files, configuration
-files, etc.  The bug-localization work presented recently by
-Shivani Rao and this author at the 2011 Mining Software
-Repository conference (MSR11) was based on a relatively
-small iBUGS dataset involving 6546 documents and a
-vocabulary size of 7553 unique words. (Here is a link to
-this work: L<http://portal.acm.org/citation.cfm?id=1985451>.
-Also note that the iBUGS dataset was originally put together
-by V. Dallmeier and T. Zimmermann for the evaluation of
-automated bug detection and localization tools.)  If C<V> is
-the size of the vocabulary and C<M> the number of the
-documents in the corpus, the size of each vector will be
-C<V> and size of the term-frequency matrix for the entire
-corpus will be C<V>xC<M>.  So if you were to duplicate the
-bug localization experiments in
-L<http://portal.acm.org/citation.cfm?id=1985451> you would
-be dealing with vectors of size 7553 and a term-frequency
-matrix of size 7553x6546.  Extrapolating these numbers to
-really large libraries/corpora, we are obviously talking
-about very large matrices for SVD decomposition.  For large
-libraries/corpora, it would be best to store away the model
-in a disk file and to base all subsequent retrievals on the
-disk-stored models.  The 'examples' directory contains
-scripts that carry out retrievals on the basis of disk-based
-models.  Further speedup in retrieval can be achieved by
-using LSA to create reduced-dimensionality representations
-for the documents and by basing retrievals on the stored
-versions of such reduced-dimensionality representations.
+It is not uncommon for large software libraries to consist of tens of
+thousands of documents that include source-code files, documentation files,
+README files, configuration files, etc.  The bug-localization work
+presented recently by Shivani Rao and this author at the 2011 Mining
+Software Repository conference (MSR11) was based on a relatively small
+iBUGS dataset involving 6546 documents and a vocabulary size of 7553 unique
+words. (Here is a link to this work:
+L<http://portal.acm.org/citation.cfm?id=1985451>.  Also note that the iBUGS
+dataset was originally put together by V. Dallmeier and T. Zimmermann for
+the evaluation of automated bug detection and localization tools.)  If C<V>
+is the size of the vocabulary and C<M> the number of the documents in the
+corpus, the size of each vector will be C<V> and size of the term-frequency
+matrix for the entire corpus will be C<V>xC<M>.  So if you were to
+duplicate the bug localization experiments in
+L<http://portal.acm.org/citation.cfm?id=1985451> you would be dealing with
+vectors of size 7553 and a term-frequency matrix of size 7553x6546.
+Extrapolating these numbers to really large libraries/corpora, we are
+obviously talking about very large matrices for SVD decomposition.  For
+large libraries/corpora, it would be best to store away the model in a disk
+file and to base all subsequent retrievals on the disk-stored models.  The
+'examples' directory contains scripts that carry out retrievals on the
+basis of disk-based models.  Further speedup in retrieval can be achieved
+by using LSA to create reduced-dimensionality representations for the
+documents and by basing retrievals on the stored versions of such
+reduced-dimensionality representations.
 
 
 =head1 ESTIMATING RETRIEVAL PERFORMANCE WITH PRECISION VS. RECALL CALCULATIONS
@@ -1336,7 +1334,7 @@ obtain what is known as C<Mean Average Precision> (MAP).  For an oracle,
 the value of MAP should be 1.0.  On the other hand, for purely random
 retrieval from a corpus, the value of MAP will be inversely proportional to
 the size of the corpus.  (See the discussion in
-L<http://RVL4.ecn.purdue.edu/~kak/SignifanceTesting.pdf> for further
+L<http://RVL4.ecn.purdue.edu/~kak/SignificanceTesting.pdf> for further
 explanation on these retrieval precision evaluators.)  This module includes
 methods that allow you to carry out these retrieval accuracy measurements
 using the relevancy judgments supplied through a disk file.  If
@@ -1622,7 +1620,7 @@ Subsequently you call
 for retrieval and for displaying the results.
 
 
-=item B<estimate_doc_relevancies($query_file):>
+=item B<estimate_doc_relevancies():>
 
 Before you can carry out precision and recall calculations to test the
 accuracy of VSM and LSA based retrievals from a corpus, you need to have
@@ -1632,7 +1630,7 @@ Relevancy judgments are commonly supplied by the humans who are familiar
 with the corpus.  But if such human-supplied relevance judgments are not
 available, you can invoke the following method to estimate them:
 
-    $vsm->estimate_doc_relevancies("test_queries.txt");
+    $vsm->estimate_doc_relevancies();
 
 For the above method call, a document is considered to be relevant to a
 query if it contains several of the query words.  As to the minimum number
@@ -1706,18 +1704,16 @@ C<relevancy_file> constructor parameter.
 
 =item B<get_query_sorted_average_precision_for_queries():>
 
-If you want to run significance tests on the retrieval
-accuracies you obtain on a given corpus and with different
-algorithms (VSM or LSA with different choices for the
-constructor parameters), you would need access to the
-average precision data for a set of queries. You can get
-this data in your own script by calling
+If you want to run significance tests on the retrieval accuracies you
+obtain on a given corpus and with different algorithms (VSM or LSA with
+different choices for the constructor parameters), your own script would
+need access to the average precision data for a set of queries. You can get
+hold of this data by calling
 
     $vsm->get_query_sorted_average_precision_for_queries();
 
-The script C<significance_testing.pl> in the 'examples'
-directory shows how you can use this method for significance
-testing.
+The script C<significance_testing.pl> in the 'examples' directory shows how
+you can use this method for significance testing.
 
 
 =back

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-### calculate_precision_and_recall_from_file_based_relevancies.pl
+### calculate_precision_and_recall_from_file_based_relevancies_for_VSM.pl
 
 #use lib '../blib/lib', '../blib/arch';
 
@@ -19,7 +19,7 @@ my $corpus_vocab_db = "corpus_vocab_db";       # The corpus-wide histogram of th
 
 my $doc_vectors_db  = "doc_vectors_db";        # Using the Storable module, we
                                                # store all the doc vectors in 
-                                               # this diskfile in case the user
+                                               # this disk file in case the user
                                                # would want to use vectors 
                                                # directly off the disk.
 

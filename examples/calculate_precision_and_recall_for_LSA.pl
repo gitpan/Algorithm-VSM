@@ -82,7 +82,7 @@ $lsa->construct_lsa_model();
 #    for precision-recall analysis.  The format of this file must be
 #    according to what is shown in the file test_queries.txt in this
 #    directory:
-$lsa->estimate_doc_relevancies("test_queries.txt");
+$lsa->estimate_doc_relevancies();
 
 #    Uncomment the following statement if you wish to see the list of all
 #    the documents relevant to each of the queries:

@@ -10,21 +10,21 @@ use Algorithm::VSM;
 
 my $debug_signi = 0;
 
-die "The number of command line arguments must be exactly 1\n" 
+die "Must supply one command-line argument, which must either be 'randomization' or 't-test'\n" 
     unless @ARGV == 1;
 my $significance_testing_method = shift @ARGV;
-die "The command line argument must either be 'randomization' or " .
-    "'t-test' for this module to be useful."
+die "The command-line argument must either be 'randomization' or " .
+    "'t-test' for this module to be useful\n"
              if ($significance_testing_method ne 'randomization') and
                 ($significance_testing_method ne 't-test');
 
 print "Proceeding with significance testing based on $significance_testing_method\n";
     
 my $MAX_ITERATIONS = 100000;
-my $THRESHOLD_1    = 0.02;
-my $THRESHOLD_2    = 0.05;
+my $THRESHOLD_1    = 0.02;               # for LSA-1
+my $THRESHOLD_2    = 0.05;               # for LSA-2
 
-my $corpus_dir = "corpus";
+my $corpus_dir = "corpus";  
 
 my $query_file      = "test_queries.txt";
 my $stop_words_file = "stop_words.txt";  
@@ -38,10 +38,9 @@ my $relevancy_file   = "relevancy.txt";
 #   algorithms.  We want to know if the difference between the MAP values
 #   for the two algorithms are statistically significant.  Our example here
 #   is based to LSA retrieval algorithms with different values for the
-#   singular value acceptance threshold signified by the parameter
-#   lsa_svd_threshold.  Under the null hypothesis, we will assume that the
-#   two algorithms are the same.  Our test statistic will be the difference
-#   between the MAP values.
+#   singular value acceptance threshold lsa_svd_threshold.  Under the 
+#   null hypothesis, we assume that the two algorithms are the same.  
+#   Our test statistic will be the difference between the MAP values.
 
 ########################  Algorithm 1  #########################
 
@@ -63,7 +62,6 @@ $lsa1->generate_document_vectors();
 $lsa1->construct_lsa_model();
 $lsa1->upload_document_relevancies_from_file();
 $lsa1->precision_and_recall_calculator('lsa');
-
 my $avg_precisions_1 = $lsa1->get_query_sorted_average_precision_for_queries();
 my $MAP_Algo_1 = 0;
 map {$MAP_Algo_1 += $_} @$avg_precisions_1;
@@ -73,9 +71,7 @@ print "Avg precisions for LSA-1: @$avg_precisions_1\n"
                                             if $debug_signi;
 
 
-
 ########################  Algorithm 2  #########################
-
 
 my $lsa2 = Algorithm::VSM->new( 
                    corpus_directory    => $corpus_dir,
@@ -92,15 +88,9 @@ my $lsa2 = Algorithm::VSM->new(
 
 $lsa2->get_corpus_vocabulary_and_word_counts();
 $lsa2->generate_document_vectors();
-#$lsa2->display_corpus_vocab();
-#$lsa2->display_doc_vectors();
 $lsa2->construct_lsa_model();
 $lsa2->upload_document_relevancies_from_file();
-#$lsa2->display_doc_relevancies();
 $lsa2->precision_and_recall_calculator('lsa');
-#$lsa2->display_precision_vs_recall_for_queries();
-#$lsa2->display_map_values_for_queries();
-
 my $avg_precisions_2 = $lsa2->get_query_sorted_average_precision_for_queries();
 my $MAP_Algo_2 = 0;
 map {$MAP_Algo_2 += $_} @$avg_precisions_2;
@@ -256,7 +246,6 @@ sub cumulative_distribution_function {
     my $PI = 3.14159265358;
     my $normalized_pdf_value = exp(-($x**2)/2.0) / sqrt(2*$PI);
     my $t = 1 / (1 + 0.2316419 * $x);
-
     my $cdf = 1 - $normalized_pdf_value * (  0.319381530*$t 
                                        - 0.356563782*($t**2) 
                                        + 1.781477937*($t**3) 

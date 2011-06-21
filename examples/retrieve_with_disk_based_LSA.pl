@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-### retrieve_with_LSA.pl
+### retrieve_with_disk_based_LSA.pl
 
 #use lib '../blib/lib', '../blib/arch';
 

@@ -70,7 +70,7 @@ $vsm->generate_document_vectors();
 #    for precision-recall analysis.  The format of this file must be
 #    according to what is shown in the file test_queries.txt in this
 #    directory:
-$vsm->estimate_doc_relevancies("test_queries.txt");
+$vsm->estimate_doc_relevancies();
 
 #    Uncomment the following statement if you wish to see the list of all
 #    the documents relevant to each of the queries:

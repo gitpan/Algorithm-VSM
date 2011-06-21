@@ -27,7 +27,7 @@ my $stop_words_file = "stop_words.txt";    # This file will typically include th
 #     retrieval directly from the databases by running the script
 #     retrieve_with_disk_based_VSM.pl.  Doing retrieval using a pre-stored
 #     model of a corpus will, in general, be much faster since you will be
-#     spared the bother of having to create the model.
+#     spared the bother of having to create the model repeatedly.
 my $corpus_vocab_db = "corpus_vocab_db";
 my $doc_vectors_db  = "doc_vectors_db";
 
