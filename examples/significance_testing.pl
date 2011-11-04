@@ -30,7 +30,7 @@ my $query_file      = "test_queries.txt";
 my $stop_words_file = "stop_words.txt";  
 my $corpus_vocab_db = "corpus_vocab_db";
 my $doc_vectors_db  = "doc_vectors_db";
-my $lsa_doc_vectors_db = "lsa_doc_vectors_db";
+my $normalized_doc_vecs_db = "normalized_doc_vecs_db";
 my $relevancy_file   = "relevancy.txt"; 
 
 
@@ -48,7 +48,7 @@ my $lsa1 = Algorithm::VSM->new(
                    corpus_directory    => $corpus_dir,
                    corpus_vocab_db     => $corpus_vocab_db,
                    doc_vectors_db      => $doc_vectors_db,
-                   lsa_doc_vectors_db  => $lsa_doc_vectors_db,
+                   normalized_doc_vecs_db   => $normalized_doc_vecs_db,
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
@@ -77,7 +77,7 @@ my $lsa2 = Algorithm::VSM->new(
                    corpus_directory    => $corpus_dir,
                    corpus_vocab_db     => $corpus_vocab_db,
                    doc_vectors_db      => $doc_vectors_db,
-                   lsa_doc_vectors_db  => $lsa_doc_vectors_db,
+                   normalized_doc_vecs_db   => $normalized_doc_vecs_db,
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
@@ -177,7 +177,7 @@ if ($significance_testing_method eq 'randomization') {
         if $debug_signi;
 
     #  This count keeps track of how many of the test_statistic values are
-    #  less than and greater the the value in $OBSERVED_t
+    #  less than and greater than the value in $OBSERVED_t
     my $count = 0;
     foreach (@test_statistic) {
         $count++ if $_ <= -1 * abs($OBSERVED_t);

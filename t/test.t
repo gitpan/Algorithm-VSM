@@ -11,11 +11,13 @@ my $corpus_dir = "examples/minicorpus";
 my @query = qw/ string getallchars throw ioexception distinct treemap histogram map /;
 my $corpus_vocab_db = "t/___corpus_vocab_db";
 my $doc_vectors_db  = "t/___doc_vectors_db";
+my $normalized_doc_vecs_db = "t/___normalized_doc_vecs_db";
 
 my $vsm = Algorithm::VSM->new( 
                    corpus_directory         => $corpus_dir,
                    corpus_vocab_db          => $corpus_vocab_db,
                    doc_vectors_db           => $doc_vectors_db,
+                   normalized_doc_vecs_db   => $normalized_doc_vecs_db,
                    stop_words_file          => $stop_words_file,
                    want_stemming            => 1,      # default is no stemming
           );
@@ -27,12 +29,11 @@ ok( scalar(keys %$retrievals) == 8,  'VSM tested successfully' );
 
 # Test 2 (Test LSA:)
 
-my $lsa_doc_vectors_db = "t/___lsa_doc_vectors_db";
 my $lsa = Algorithm::VSM->new( 
                    corpus_directory         => $corpus_dir,
                    corpus_vocab_db          => $corpus_vocab_db,
                    doc_vectors_db           => $doc_vectors_db,
-                   lsa_doc_vectors_db       => $lsa_doc_vectors_db,
+                   normalized_doc_vecs_db   => $normalized_doc_vecs_db,
                    stop_words_file          => $stop_words_file,
                    want_stemming            => 1,  
                    lsa_svd_threshold        => 0.01,
@@ -47,5 +48,5 @@ ok( scalar(keys %$retrievals_lsa) == 8,  'LSA tested successfully' );
 unlink "t/___corpus_vocab_db.dir";
 unlink "t/___corpus_vocab_db.pag";
 unlink "t/___doc_vectors_db";
-unlink "t/___lsa_doc_vectors_db";
+unlink "t/___normalized_doc_vecs_db";
 

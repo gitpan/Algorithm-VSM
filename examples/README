@@ -28,8 +28,8 @@
 
 
 
-(3)  Both the scripts mentioned above deposit the VSM and the LSA models
-     created in disk-based database files.  To retrieve from the disk-based
+(3)  The first script mentioned above deposits the calculated VSM model 
+     in disk-based database files.  To retrieve from the disk-based
      VSM model created by the 'retrieve_with_VSM.pl' script, run the script
 
              retrieve_with_disk_based_VSM.pl
@@ -40,8 +40,9 @@
 
 
 
-(4)  To retrieve using the disk-based LSA model created by the previous 
-     execution of the script 'retrieve_with_LSA.pl', now execute the script
+(4)  The disk-based information that is saved away by retrieve_with_VSM.pl
+     can also be used for a faster calculation of the LSA model and 
+     retrieval from the model thus created.  For this you'd need to call:
 
              retrieve_with_disk_based_LSA.pl
 
@@ -59,16 +60,16 @@
      This script first tries to estimate the relevancies of the corpus
      files to each of the queries in the file 'test_queries.txt'.  The
      module calculates the two measures Precision@rank and Recall@rank.
-     The under the Precision vs. Recall curve for each query is the
+     The area under the Precision vs. Recall curve for each query is the
      accuracy of retrieval for that query.  Averaging of this result over
      all the queries yields the more global metric MAP (Mean Average
      Precision).
      
      As mentioned elsewhere in the module documentation, estimating
-     relevancies in the manner the module does is not safe.  Relevancies
-     are supposed to be supplied by humans.  All that a computer can do to
-     estimate relevancies is to count the number of query words in a
-     document.  But, measuring relevancies in this manner, creates circular
+     relevancies in the manner carried out by the module is not safe.  
+     Relevancies are supposed to be supplied by humans.  All that a computer 
+     can do to estimate relevancies is to count the number of query words in a
+     document.  But, measuring relevancies in this manner creates a circular
      dependency between the retrieval algorithm and the estimated
      relevancy.
 

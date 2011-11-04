@@ -21,8 +21,8 @@ my $stop_words_file = "stop_words.txt";    # This file will typically include th
                                            # keywords of the programming 
                                            # language(s) used in the software.
 
-#     The three databases named below store the corpus vocabulary word
-#     frequency histogram, the doc vectors for the files in the corpus, and
+#     The two databases named below store the corpus vocabulary word
+#     frequency histogram, and the doc vectors for the files in the corpus, and
 #     the doc vectors in a reduced-dimensionality LSA representation of the
 #     corpus, respectively.  After these three databases are created, you
 #     can do VSM retrieval directly from the databases by running the
@@ -31,13 +31,14 @@ my $stop_words_file = "stop_words.txt";    # This file will typically include th
 #     you will be spared the bother of having to create the model.
 my $corpus_vocab_db = "corpus_vocab_db";
 my $doc_vectors_db  = "doc_vectors_db";
-my $lsa_doc_vectors_db = "lsa_doc_vectors_db";
+my $normalized_doc_vecs_db  = "normalized_doc_vecs_db";
 
 my $lsa = Algorithm::VSM->new( 
                    corpus_directory         => $corpus_dir,
                    corpus_vocab_db          => $corpus_vocab_db,
                    doc_vectors_db           => $doc_vectors_db,
-                   lsa_doc_vectors_db       => $lsa_doc_vectors_db,
+                   normalized_doc_vecs_db   => $normalized_doc_vecs_db,
+#                   use_idf_filter           => 0,
                    stop_words_file          => $stop_words_file,
                    want_stemming            => 1,        # Default is no stemming
                    lsa_svd_threshold        => 0.01,# Used for rejecting singular
@@ -50,14 +51,22 @@ my $lsa = Algorithm::VSM->new(
 
 $lsa->get_corpus_vocabulary_and_word_counts();
 
-$lsa->generate_document_vectors();
-
 #   Uncomment the following if you would like to see the corpus vocabulary:
 #$lsa->display_corpus_vocab();
+
+#    Uncomment the following statement if you would like to see the inverse
+#    document frequencies:
+#$lsa->display_inverse_document_frequencies();
+
+$lsa->generate_document_vectors();
 
 #   Uncomment the following if you would like to see the doc vectors for
 #   each of the documents in the corpus:
 #$lsa->display_doc_vectors();
+
+#    Uncomment the folloiwng statement if you would like to the individual
+#    normalized document vectors:
+#$lsa->display_normalized_doc_vectors();
 
 $lsa->construct_lsa_model();
 

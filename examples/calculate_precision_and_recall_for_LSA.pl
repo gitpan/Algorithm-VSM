@@ -23,10 +23,14 @@ my $doc_vectors_db  = "doc_vectors_db";        # Using the Storable module, we
                                                # would want to use vectors 
                                                # directly off the disk.
 
-my $lsa_doc_vectors_db = "lsa_doc_vectors_db"; # Using the Storable module, we
-                                               # store all the reduced-
-                                               # dimensionality LSA doc vectors
-                                               # in this database.
+my $normalized_doc_vecs_db = "normalized_doc_vecs_db";
+                                               # Using the Storable module, we
+                                               # store the normalized vectors
+                                               # for the document in this database.
+                                               # Normalization means replacing the
+                                               # term occurrence counts by relative 
+                                               # frequencies and multiplying by
+                                               # idf(t) 
 
 my $stop_words_file = "stop_words.txt";        # Will typically include the 
                                                # keywords of the programming
@@ -44,7 +48,7 @@ my $lsa = Algorithm::VSM->new(
                    corpus_directory    => $corpus_dir,
                    corpus_vocab_db     => $corpus_vocab_db,
                    doc_vectors_db      => $doc_vectors_db,
-                   lsa_doc_vectors_db  => $lsa_doc_vectors_db,
+                   normalized_doc_vecs_db   => $normalized_doc_vecs_db,
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,

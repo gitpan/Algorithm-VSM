@@ -1,14 +1,14 @@
-Algorithm::VSM --- A pure-Perl implementation for
+pAlgorithm::VSM --- A pure-Perl implementation for
 constructing either a VSM or an LSA model of a software
-library and for using such models for retrieving document
-names from such a library in responds to the search words in
-a query.
+library/corpus and for using such models for retrieving
+document names from the library/corpus in response to the
+search words in a query.
 
 The module can also use pre-stored VSM or LSA models of a
 library/corpus for faster retrieval.
 
 The module has also been provided with methods for
-calculation precision and recall numbers for measuring the
+calculating precision and recall numbers for measuring the
 retrieval accuracy for a given library/corpus.
 
 For installation, do the usual
