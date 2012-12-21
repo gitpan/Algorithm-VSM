@@ -59,6 +59,7 @@ $vsm->get_corpus_vocabulary_and_word_counts();
 #    vocabulary:
 #$vsm->display_corpus_vocab();
 
+
 #    Uncomment the following statement if you would like to see the inverse
 #    document frequencies:
 #$vsm->display_inverse_document_frequencies();
@@ -69,10 +70,10 @@ $vsm->generate_document_vectors();
 #    document vectors:
 #$vsm->display_doc_vectors();
 
+
 #    Uncomment the folloiwng statement if you would like to the individual
 #    normalized document vectors:
 #$vsm->display_normalized_doc_vectors();
-
 
 my $retrievals = $vsm->retrieve_with_vsm( \@query );
 

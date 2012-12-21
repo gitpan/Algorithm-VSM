@@ -1,6 +1,5 @@
 
 
-
 (1)  To become familiar with this module, first run the script:
 
              retrieve_with_VSM.pl
@@ -116,3 +115,20 @@
      lsa_svd_threshold.  Note that the command-line argument determines
      which type of significance test will be carried out, the one based on
      randomization or the one based on student-t.
+
+
+(10) If you want to calculate a similarity matrix for all the documents
+     in your corpus, execute the script
+
+          calculate_similarity_matrix_for_all_docs.pl
+
+     or the script
+
+          calculate_similarity_matrix_for_all_normalized_docs.pl
+
+     The former calculates the similarity between each pair of documents
+     using the regular document vectors.  On the other hand, the latter
+     script uses the normalized document vectors.  As currently written,
+     these scripts work on the files in the 'minicorpus' subdirectory.
+     Since this mini-corpus contains only eight files, you can actually
+     print out the 8x8 matrix of numbers.

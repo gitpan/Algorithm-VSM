@@ -17,7 +17,7 @@ WriteMakefile(
                       PDL::IO::Storable,
                     },
     AUTHOR       => 'Avinash Kak (kak@purdue.edu)',
-    ABSTRACT     => 'A pure-Perl implementation of VSM and LSA algorithms for retrieval from software libraries',
+    ABSTRACT     => 'A Perl module for retrieving files and documents from a software library with VSM and LSA algorithms',
     clean        => {FILES => join(" ",
                                    map { "$_ */$_ */*/$_" }
                                    qw( *% *.b[ac]k *.old *.orig ) )

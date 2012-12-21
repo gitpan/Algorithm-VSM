@@ -1,15 +1,15 @@
 package Algorithm::VSM;
 
 #---------------------------------------------------------------------------
-# Copyright (c) 2011 Avinash Kak. All rights reserved.  This program is
+# Copyright (c) 2012 Avinash Kak. All rights reserved.  This program is
 # free software.  You may modify and/or distribute it under the same terms
 # as Perl itself.  This copyright notice must remain attached to the file.
 #
-# Algorithm::VSM is a pure-Perl implementation for retrieving documents
-# from software libraries that match a list of words in a query.  Document
-# are matched with queries using a similarity criterion that depends on
-# whether your model for the entire library is based on the
-# full-dimensionality VSM or on the reduced-dimensionality LSA.
+# Algorithm::VSM is a Perl module for retrieving documents from software
+# libraries that match a list of words in a query.  Document are matched
+# with queries using a similarity criterion that depends on whether your
+# model for the entire library is based on the full-dimensionality VSM or
+# on the reduced-dimensionality LSA.
 # ---------------------------------------------------------------------------
 
 use 5.10.0;
@@ -21,7 +21,7 @@ use Fcntl;
 use Storable;
 use Cwd;
 
-our $VERSION = '1.3';
+our $VERSION = '1.4';
 
 #############################   Constructor  ########################
 
@@ -149,6 +149,12 @@ sub display_inverse_document_frequencies {
     }
 }
 
+sub get_all_document_names {
+    my $self = shift;
+    my @all_files = sort keys %{$self->{_corpus_doc_vectors}};
+    return \@all_files;
+}
+
 ####################  Generate Document Vectors  ########################
 
 sub generate_document_vectors {
@@ -206,7 +212,55 @@ sub display_normalized_doc_vectors {
 }
 
 
-#########################  Retrieve with VSM Model  #####################
+#################  Calculate Pairwise Document Similarities  ################
+
+# Returns the similarity score for two documents whose actual names are
+# are supplied as its two arguments.
+sub pairwise_similarity_for_docs {
+    my $self = shift;
+    my $doc1 = shift;
+    my $doc2 = shift;
+    my @all_files = keys %{$self->{_corpus_doc_vectors}};
+    croak "The file $doc1 does not exist in the corpus:  " unless contained_in($doc1, @all_files);
+    croak "The file $doc2 does not exist in the corpus:  " unless contained_in($doc2, @all_files);
+    my $vec_hash_ref1 = $self->{_corpus_doc_vectors}->{$doc1};
+    my $vec_hash_ref2 = $self->{_corpus_doc_vectors}->{$doc2};
+    my @vec1 = ();
+    my @vec2 = ();
+    foreach my $word (sort keys %$vec_hash_ref1) {
+        push @vec1, $vec_hash_ref1->{$word};
+        push @vec2, $vec_hash_ref2->{$word};
+    }
+    my $vec_mag1 = vec_magnitude(\@vec1);
+    my $vec_mag2 = vec_magnitude(\@vec2);
+    my $product = vec_scalar_product(\@vec1, \@vec2);
+    $product /= $vec_mag1 * $vec_mag2;
+    return $product;
+}
+
+sub pairwise_similarity_for_normalized_docs {
+    my $self = shift;
+    my $doc1 = shift;
+    my $doc2 = shift;
+    my @all_files = keys %{$self->{_corpus_doc_vectors}};
+    croak "The file $doc1 does not exist in the corpus:  " unless contained_in($doc1, @all_files);
+    croak "The file $doc2 does not exist in the corpus:  " unless contained_in($doc2, @all_files);
+    my $vec_hash_ref1 = $self->{_normalized_doc_vecs}->{$doc1};
+    my $vec_hash_ref2 = $self->{_normalized_doc_vecs}->{$doc2};
+    my @vec1 = ();
+    my @vec2 = ();
+    foreach my $word (sort keys %$vec_hash_ref1) {
+        push @vec1, $vec_hash_ref1->{$word};
+        push @vec2, $vec_hash_ref2->{$word};
+    }
+    my $vec_mag1 = vec_magnitude(\@vec1);
+    my $vec_mag2 = vec_magnitude(\@vec2);
+    my $product = vec_scalar_product(\@vec1, \@vec2);
+    $product /= $vec_mag1 * $vec_mag2;
+    return $product;
+}
+
+#########################  Retrieve with VSM Model  #########################
 
 sub retrieve_with_vsm {
     my $self = shift;
@@ -971,6 +1025,15 @@ sub _check_for_illegal_params {
     return $found_match_flag;
 }
 
+# checks whether an element is in an array:
+sub contained_in {
+    my $ele = shift;
+    my @array = @_;
+    my $count = 0;
+    map {$count++ if $ele eq $_} @array;
+    return $count;
+}
+
 # Meant only for an un-nested hash:
 sub deep_copy_hash {
     my $ref_in = shift;
@@ -1062,10 +1125,9 @@ sub get_integer_suffix {
 =pod
 =head1 NAME
 
-Algorithm::VSM --- A pure-Perl implementation for constructing a Vector
-Space Model (VSM) or a Latent Semantic Analysis Model (LSA) of a software
-library and for using such models for efficient retrieval of files in
-response to search words.
+Algorithm::VSM --- A Perl module for retrieving files and documents from a
+software library with the VSM (Vector Space Model) and LSA (Latent Semantic
+Analysis) algorithms in response to search words.
 
 =head1 SYNOPSIS
 
@@ -1333,6 +1395,14 @@ response to search words.
 
 
 =head1 CHANGES
+
+Version 1.4 makes it easier for a user to calculate a similarity matrix
+over all the documents in the corpus. The elements of such a matrix express
+pairwise similarities between the documents.  The pairwise similarities are
+based on the dot product of two document vectors divided by the product of
+the vector magnitudes.  The 'examples' directory contains two scripts to
+illustrate how such matrices can be calculated by the user.  The similarity
+matrix is output as a CSV file.
 
 Version 1.3 incorporates IDF (Inverse Document Frequency) weighting of the
 words in a document file. What that means is that the words that appear in
@@ -1659,6 +1729,15 @@ division by zero).  Ideally, if a word appears in all the documents, its
 idf would be small, close to zero. Words with small idf values are
 non-discriminatory and should get reduced weighting in document retrieval.
 
+=item B<get_all_document_names():>
+
+If you want to get hold of all the filenames in the corpus in your own
+script, you can call
+
+    my @docs = @{$vsm->get_all_document_names()};
+
+The array on the left will contain an alphabetized list of the files.
+
 =item B<generate_document_vectors():>
 
 This is a necessary step after the vocabulary used by a corpus is
@@ -1688,6 +1767,24 @@ If you would like to see the normalized document vectors, make the call:
 
 See the comment made previously as to what is meant by the normalization of
 a document vector.
+
+=item B<pairwise_similarity_for_docs():>
+
+=item B<pairwise_similarity_for_normalized_docs():>
+
+If you would like to compare in your own script any two documents in
+the corpus, you can call
+
+    my $similarity = $vsm->pairwise_similarity_for_docs("filename_1", "filename_2");
+
+or
+
+    my $similarity = $vsm->pairwise_similarity_for_normalized_docs("filename_1", "filename_2");
+
+Both these calls return a number that is the dot product of the two
+document vectors normalized by the product of their magnitudes.  The first
+call uses the regular document vectors and the second the normalized
+document vectors.
 
 =item B<retrieve_with_vsm():>
 
@@ -1974,6 +2071,20 @@ retrieval algorithms you are considering are the same from a black-box
 perspective and then calculating what is known as a C<p-value>.  If the
 C<p-value> is less than, say, 0.05, you reject the null hypothesis.
 
+=item B<To calculate a similarity matrix for all the documents in your corpus:>
+
+    calculate_similarity_matrix_for_all_docs.pl
+
+or
+
+    calculate_similarity_matrix_for_all_normalized_docs.pl
+
+The former uses regular document vectors for calculating the similarity
+between every pair of documents in the corpus. And the latter uses
+normalized document vectors for the same purpose.  The document order used
+for row and column indexing of the matrix corresponds to the alphabetic
+ordering of the document names in the corpus directory.
+
 =back
 
 
@@ -2015,9 +2126,9 @@ if you have root access.  If not,
 
 =head1 THANKS
 
-Many thanks are owed to Shivani Rao and Bunyamin Sisman for sharing with
-me their deep insights in IR.  
-
+Many thanks are owed to Shivani Rao and Bunyamin Sisman for sharing with me
+their deep insights in IR.  Version 1.4 was prompted by Zahn Bozanic's
+interest in similarity matrix characterization of a corpus. Thanks, Zahn!
 
 =head1 AUTHOR
 
@@ -2031,7 +2142,7 @@ subject line to get past my spam filter.
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
- Copyright 2011 Avinash Kak
+ Copyright 2012 Avinash Kak
 
 =cut
 
