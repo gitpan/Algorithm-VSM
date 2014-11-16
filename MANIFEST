@@ -305,7 +305,7 @@ examples/corpus_with_java_and_cpp/WindowWithMenu.cc
 examples/corpus_with_java_and_cpp/WindowWithMenu.java
 examples/corpus_with_java_and_cpp/WriteIntToFile.java
 examples/corpus_with_java_and_cpp/WriteStringToFile.java
-examples/doc_vectors_d
+examples/doc_vectors_db
 examples/microcorpus/ExceptionUsage1.java
 examples/microcorpus/ExceptionUsage2.java
 examples/minicorpus/CloneClassTypeArr.java
@@ -332,4 +332,5 @@ MANIFEST			This list of files
 README
 t/test.t
 
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)

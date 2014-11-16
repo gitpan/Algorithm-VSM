@@ -1,7 +1,7 @@
 package Algorithm::VSM;
 
 #---------------------------------------------------------------------------
-# Copyright (c) 2012 Avinash Kak. All rights reserved.  This program is
+# Copyright (c) 2014 Avinash Kak. All rights reserved.  This program is
 # free software.  You may modify and/or distribute it under the same terms
 # as Perl itself.  This copyright notice must remain attached to the file.
 #
@@ -17,11 +17,13 @@ use strict;
 use warnings;
 use Carp;
 use SDBM_File;
+use PDL::Lite;
+use PDL::MatrixOps;
 use Fcntl;
 use Storable;
 use Cwd;
 
-our $VERSION = '1.4';
+our $VERSION = '1.41';
 
 #############################   Constructor  ########################
 
@@ -459,8 +461,8 @@ sub construct_lsa_model {
             push @{$self->{_term_document_matrix}}, $term_frequency_vec;
         }
     }
-    use PDL;
-    my $A = transpose( pdl(@{$self->{_term_document_matrix}}) );
+#    use PDL;
+    my $A = PDL::Basic::transpose( pdl(@{$self->{_term_document_matrix}}) );
     my ($U,$SIGMA,$V) = svd $A;
     print "LSA: Singular Values SIGMA: " . $SIGMA . "\n" if $self->{_debug};
     print "size of svd SIGMA:  ", $SIGMA->dims, "\n" if $self->{_debug};
@@ -480,7 +482,7 @@ sub construct_lsa_model {
     my $U_trunc = $U->slice("0:$index,:")->sever;
     my $V_trunc = $V->slice("0:$index,0:$index")->sever;    
     $self->{_lsa_vec_truncator} = inv(stretcher($SIGMA_trunc)) x 
-                                             transpose($U_trunc);
+                                             PDL::Basic::transpose($U_trunc);
     print "\n\nLSA doc truncator: " . $self->{_lsa_vec_truncator} . "\n\n"
             if $self->{_debug};
     my @sorted_doc_names = $self->{_idf_filter_option} ? 
@@ -489,7 +491,7 @@ sub construct_lsa_model {
     my $i = 0;
     foreach (@{$self->{_term_document_matrix}}) {
         my $truncated_doc_vec = $self->{_lsa_vec_truncator} x 
-                                               transpose(pdl($_));
+                                               PDL::Basic::transpose(pdl($_));
         my $doc_name = $sorted_doc_names[$i++];
         print "\n\nTruncated doc vec for $doc_name: " . 
                  $truncated_doc_vec . "\n" if $self->{_debug};
@@ -500,7 +502,7 @@ sub construct_lsa_model {
 }
 
 sub retrieve_with_lsa {
-    use PDL;
+#    use PDL;
     my $self = shift;
     my $query = shift;
     print "\nYour query words are: @$query\n" if $self->{_debug};
@@ -525,12 +527,12 @@ sub retrieve_with_lsa {
     }
     print "\n\nQuery vector: @$query_vec\n" if $self->{_debug};
     my $truncated_query_vec = $self->{_lsa_vec_truncator} x 
-                                               transpose(pdl($query_vec));
+                                               PDL::Basic::transpose(pdl($query_vec));
     print "\n\nTruncated query vector: " .  $truncated_query_vec . "\n"
                                    if $self->{_debug};                  
     my %retrievals;
     foreach (sort keys %{$self->{_doc_vecs_trunc_lsa}}) {
-        my $dot_product = transpose($truncated_query_vec)
+        my $dot_product = PDL::Basic::transpose($truncated_query_vec)
                      x pdl($self->{_doc_vecs_trunc_lsa}->{$_});
         print "\n\nLSA: dot product of truncated query and\n" .
               "     truncated vec for doc $_ is " . $dot_product->sclr . "\n"
@@ -1149,7 +1151,6 @@ Analysis) algorithms in response to search words.
                            stop_words_file          => $stop_words_file,
                            max_number_retrievals    => 10,
                            want_stemming            => 1,  
-                           debug                    => 1,
         );
         $vsm->get_corpus_vocabulary_and_word_counts();
         $vsm->display_corpus_vocab();
@@ -1173,9 +1174,6 @@ Analysis) algorithms in response to search words.
      display_corpus_vocab() and display_doc_vectors() are there only for 
      testing purposes with small corpora.  If you must use them for large 
      libraries/corpora, you might wish to redirect the output to a file.  
-     The 'debug' option, when turned on, will output a large number of 
-     intermediate results in the calculation of the model.  It is best 
-     to redirect the output to a file if 'debug' is on.
 
      By default, a call to any of the constructors will calculate
      normalized term-frequency vectors for the documents.  Normalization
@@ -1396,171 +1394,156 @@ Analysis) algorithms in response to search words.
 
 =head1 CHANGES
 
-Version 1.4 makes it easier for a user to calculate a similarity matrix
-over all the documents in the corpus. The elements of such a matrix express
-pairwise similarities between the documents.  The pairwise similarities are
-based on the dot product of two document vectors divided by the product of
-the vector magnitudes.  The 'examples' directory contains two scripts to
-illustrate how such matrices can be calculated by the user.  The similarity
-matrix is output as a CSV file.
+Version 1.41 downshifts the required version of the PDL module. Also cleaned up are
+the dependencies between this module and the submodules of PDL.
 
-Version 1.3 incorporates IDF (Inverse Document Frequency) weighting of the
-words in a document file. What that means is that the words that appear in
-most of the documents get reduced weighting since such words are
-non-discriminatory with respect to the retrieval of the documents. A
-typical formula that is used to calculate the IDF weight for a word is the
-logarithm of the ratio of the total number of documents to the number of
-documents in which the word appears.  So if a word were to appear in all
-the documents, its IDF multiplier would be zero in the vector
-representation of a document.  If so desired, you can turn off the IDF
-weighting of the words by explicitly setting the constructor parameter
-C<use_idf_filter> to zero.
+Version 1.4 makes it easier for a user to calculate a similarity matrix over all the
+documents in the corpus. The elements of such a matrix express pairwise similarities
+between the documents.  The pairwise similarities are based on the dot product of two
+document vectors divided by the product of the vector magnitudes.  The 'examples'
+directory contains two scripts to illustrate how such matrices can be calculated by
+the user.  The similarity matrix is output as a CSV file.
 
-Version 1.2 includes a code correction and some general code and
-documentation cleanup.
+Version 1.3 incorporates IDF (Inverse Document Frequency) weighting of the words in a
+document file. What that means is that the words that appear in most of the documents
+get reduced weighting since such words are non-discriminatory with respect to the
+retrieval of the documents. A typical formula that is used to calculate the IDF
+weight for a word is the logarithm of the ratio of the total number of documents to
+the number of documents in which the word appears.  So if a word were to appear in
+all the documents, its IDF multiplier would be zero in the vector representation of a
+document.  If so desired, you can turn off the IDF weighting of the words by
+explicitly setting the constructor parameter C<use_idf_filter> to zero.
 
-With Version 1.1, you can access the retrieval precision results so that
-you can compare two different retrieval algorithms (VSM or LSA with
-different choices for some of the constructor parameters) with significance
-testing. (Version 1.0 merely sent those results to standard output,
-typically your terminal window.)  In Version 1.1, the new script
-B<significance_testing.pl> in the 'examples' directory illustrates
-significance testing with Randomization and with Student's Paired t-Test.
+Version 1.2 includes a code correction and some general code and documentation
+cleanup.
+
+With Version 1.1, you can access the retrieval precision results so that you can
+compare two different retrieval algorithms (VSM or LSA with different choices for
+some of the constructor parameters) with significance testing. (Version 1.0 merely
+sent those results to standard output, typically your terminal window.)  In Version
+1.1, the new script B<significance_testing.pl> in the 'examples' directory
+illustrates significance testing with Randomization and with Student's Paired t-Test.
 
 =head1 DESCRIPTION
 
-B<Algorithm::VSM> is a I<perl5> module for constructing a Vector Space
-Model (VSM) or a Latent Semantic Analysis Model (LSA) of a collection of
-documents, usually referred to as a corpus, and then retrieving the
-documents in response to search words in a query.
+B<Algorithm::VSM> is a I<perl5> module for constructing a Vector Space Model (VSM) or
+a Latent Semantic Analysis Model (LSA) of a collection of documents, usually referred
+to as a corpus, and then retrieving the documents in response to search words in a
+query.
 
-VSM and LSA models have been around for a long time in the Information
-Retrieval (IR) community.  More recently such models have been shown to be
-effective in retrieving files/documents from software libraries. For an
-account of this research that was presented by Shivani Rao and the author
-of this module at the 2011 Mining Software Repositories conference, see
-L<http://portal.acm.org/citation.cfm?id=1985451>.
+VSM and LSA models have been around for a long time in the Information Retrieval (IR)
+community.  More recently such models have been shown to be effective in retrieving
+files/documents from software libraries. For an account of this research that was
+presented by Shivani Rao and the author of this module at the 2011 Mining Software
+Repositories conference, see L<http://portal.acm.org/citation.cfm?id=1985451>.
 
-VSM modeling consists of: (1) Extracting the vocabulary used in a corpus.
-(2) Stemming the words so extracted and eliminating the designated stop
-words from the vocabulary.  Stemming means that closely related words like
-'programming' and 'programs' are reduced to the common root word 'program'
-and the stop words are the non-discriminating words that can be expected to
-exist in virtually all the documents. (3) Constructing document vectors for
-the individual files in the corpus --- the document vectors taken together
-constitute what is usually referred to as a 'term-frequency' matrix for the
-corpus. (4) Normalizing the document vectors to factor out the effect of
-document size and, if desired, multiplying the term frequencies by the IDF
-(Inverse Document Frequency) values for the words to reduce the weight of
-the words that appear in a large number of documents. (5) Constructing a
-query vector for the search query after the query is subject to the same
-stemming and stop-word elimination rules that were applied to the
-corpus. And, lastly, (6) Using a similarity metric to return the set of
-documents that are most similar to the query vector.  The commonly used
-similarity metric is one based on the cosine distance between two vectors.
-Also note that all the vectors mentioned here are of the same size, the
-size of the vocabulary.  An element of a vector is the frequency of
-occurrence of the word corresponding to that position in the vector.
+VSM modeling consists of: (1) Extracting the vocabulary used in a corpus.  (2)
+Stemming the words so extracted and eliminating the designated stop words from the
+vocabulary.  Stemming means that closely related words like 'programming' and
+'programs' are reduced to the common root word 'program' and the stop words are the
+non-discriminating words that can be expected to exist in virtually all the
+documents. (3) Constructing document vectors for the individual files in the corpus
+--- the document vectors taken together constitute what is usually referred to as a
+'term-frequency' matrix for the corpus. (4) Normalizing the document vectors to
+factor out the effect of document size and, if desired, multiplying the term
+frequencies by the IDF (Inverse Document Frequency) values for the words to reduce
+the weight of the words that appear in a large number of documents. (5) Constructing
+a query vector for the search query after the query is subject to the same stemming
+and stop-word elimination rules that were applied to the corpus. And, lastly, (6)
+Using a similarity metric to return the set of documents that are most similar to the
+query vector.  The commonly used similarity metric is one based on the cosine
+distance between two vectors.  Also note that all the vectors mentioned here are of
+the same size, the size of the vocabulary.  An element of a vector is the frequency
+of occurrence of the word corresponding to that position in the vector.
 
-LSA modeling is a small variation on VSM modeling.  Now you take VSM
-modeling one step further by subjecting the term-frequency matrix for the
-corpus to singular value decomposition (SVD).  By retaining only a subset
-of the singular values (usually the N largest for some value of N), you can
-construct reduced-dimensionality vectors for the documents and the queries.
-In VSM, as mentioned above, the size of the document and the query vectors
-is equal to the size of the vocabulary.  For large corpora, this size may
-involve tens of thousands of words --- this can slow down the VSM modeling
-and retrieval process.  So you are very likely to get faster performance
-with retrieval based on LSA modeling, especially if you store the model
-once constructed in a database file on the disk and carry out retrievals
-using the disk-based model.
+LSA modeling is a small variation on VSM modeling.  Now you take VSM modeling one
+step further by subjecting the term-frequency matrix for the corpus to singular value
+decomposition (SVD).  By retaining only a subset of the singular values (usually the
+N largest for some value of N), you can construct reduced-dimensionality vectors for
+the documents and the queries.  In VSM, as mentioned above, the size of the document
+and the query vectors is equal to the size of the vocabulary.  For large corpora,
+this size may involve tens of thousands of words --- this can slow down the VSM
+modeling and retrieval process.  So you are very likely to get faster performance
+with retrieval based on LSA modeling, especially if you store the model once
+constructed in a database file on the disk and carry out retrievals using the
+disk-based model.
 
 
 =head1 CAN THIS MODULE BE USED FOR GENERAL TEXT RETRIEVAL?
 
-This module has only been tested for software retrieval.  For more general
-text retrieval, you would need to replace the simple stemmer used in the
-module by one based on, say, Porter's Stemming Algorithm.  You would also
-need to vastly expand the list of stop words appropriate to the text
-corpora of interest to you. As previously mentioned, the stop words are the
-commonly occurring words that do not carry much discriminatory power from
-the standpoint of distinguishing between the documents.  See the file
-'stop_words.txt' in the 'examples' directory for how such a file must be
+This module has only been tested for software retrieval.  For more general text
+retrieval, you would need to replace the simple stemmer used in the module by one
+based on, say, Porter's Stemming Algorithm.  You would also need to vastly expand the
+list of stop words appropriate to the text corpora of interest to you. As previously
+mentioned, the stop words are the commonly occurring words that do not carry much
+discriminatory power from the standpoint of distinguishing between the documents.
+See the file 'stop_words.txt' in the 'examples' directory for how such a file must be
 formatted.
 
 
 =head1 HOW DOES ONE DEAL WITH VERY LARGE LIBRARIES/CORPORA?
 
-It is not uncommon for large software libraries to consist of tens of
-thousands of documents that include source-code files, documentation files,
-README files, configuration files, etc.  The bug-localization work
-presented recently by Shivani Rao and this author at the 2011 Mining
-Software Repository conference (MSR11) was based on a relatively small
-iBUGS dataset involving 6546 documents and a vocabulary size of 7553 unique
-words. (Here is a link to this work:
-L<http://portal.acm.org/citation.cfm?id=1985451>.  Also note that the iBUGS
-dataset was originally put together by V. Dallmeier and T. Zimmermann for
-the evaluation of automated bug detection and localization tools.)  If C<V>
-is the size of the vocabulary and C<M> the number of the documents in the
-corpus, the size of each vector will be C<V> and size of the term-frequency
-matrix for the entire corpus will be C<V>xC<M>.  So if you were to
-duplicate the bug localization experiments in
-L<http://portal.acm.org/citation.cfm?id=1985451> you would be dealing with
-vectors of size 7553 and a term-frequency matrix of size 7553x6546.
-Extrapolating these numbers to really large libraries/corpora, we are
-obviously talking about very large matrices for SVD decomposition.  For
-large libraries/corpora, it would be best to store away the model in a disk
-file and to base all subsequent retrievals on the disk-stored models.  The
-'examples' directory contains scripts that carry out retrievals on the
-basis of disk-based models.  Further speedup in retrieval can be achieved
-by using LSA to create reduced-dimensionality representations for the
-documents and by basing retrievals on the stored versions of such
-reduced-dimensionality representations.
+It is not uncommon for large software libraries to consist of tens of thousands of
+documents that include source-code files, documentation files, README files,
+configuration files, etc.  The bug-localization work presented recently by Shivani
+Rao and this author at the 2011 Mining Software Repository conference (MSR11) was
+based on a relatively small iBUGS dataset involving 6546 documents and a vocabulary
+size of 7553 unique words. (Here is a link to this work:
+L<http://portal.acm.org/citation.cfm?id=1985451>.  Also note that the iBUGS dataset
+was originally put together by V. Dallmeier and T. Zimmermann for the evaluation of
+automated bug detection and localization tools.)  If C<V> is the size of the
+vocabulary and C<M> the number of the documents in the corpus, the size of each
+vector will be C<V> and size of the term-frequency matrix for the entire corpus will
+be C<V>xC<M>.  So if you were to duplicate the bug localization experiments in
+L<http://portal.acm.org/citation.cfm?id=1985451> you would be dealing with vectors of
+size 7553 and a term-frequency matrix of size 7553x6546.  Extrapolating these numbers
+to really large libraries/corpora, we are obviously talking about very large matrices
+for SVD decomposition.  For large libraries/corpora, it would be best to store away
+the model in a disk file and to base all subsequent retrievals on the disk-stored
+models.  The 'examples' directory contains scripts that carry out retrievals on the
+basis of disk-based models.  Further speedup in retrieval can be achieved by using
+LSA to create reduced-dimensionality representations for the documents and by basing
+retrievals on the stored versions of such reduced-dimensionality representations.
 
 
 =head1 ESTIMATING RETRIEVAL PERFORMANCE WITH PRECISION VS. RECALL CALCULATIONS
 
-The performance of a retrieval algorithm is typically measured by two
-properties: C<Precision at rank> and C<Recall at rank>.  As mentioned in
-the L<http://portal.acm.org/citation.cfm?id=1985451> publication, at a
-given rank C<r>, C<Precision> is the ratio of the number of retrieved
-documents that are relevant to the total number of retrieved documents up
-to that rank.  And, along the same lines, C<Recall> at a given rank C<r> is
-the ratio of the number of retrieved documents that are relevant to the
-total number of relevant documents.  The area under the
-C<Precision>--C<Recall> curve is called the C<Average Precision> for a
-query.  When the C<Average Precision> is averaged over all the queries, we
-obtain what is known as C<Mean Average Precision> (MAP).  For an oracle,
-the value of MAP should be 1.0.  On the other hand, for purely random
-retrieval from a corpus, the value of MAP will be inversely proportional to
-the size of the corpus.  (See the discussion in
-L<https://engineering.purdue.edu/kak/SignificanceTesting.pdf> for further
-explanation on these retrieval precision evaluators.)  This module includes
-methods that allow you to carry out these retrieval accuracy measurements
-using the relevancy judgments supplied through a disk file.  If
-human-supplied relevancy judgments are not available, the module will be
-happy to estimate relevancies for you just by determining the number of
-query words that exist in a document.  Note, however, that relevancy
-judgments estimated in this manner cannot be trusted. That is because
-ultimately it is the humans who are the best judges of the relevancies of
-documents to queries.  The humans bring to bear semantic considerations on
-the relevancy determination problem that are beyond the scope of this
-module.
+The performance of a retrieval algorithm is typically measured by two properties:
+C<Precision at rank> and C<Recall at rank>.  As mentioned in the
+L<http://portal.acm.org/citation.cfm?id=1985451> publication, at a given rank C<r>,
+C<Precision> is the ratio of the number of retrieved documents that are relevant to
+the total number of retrieved documents up to that rank.  And, along the same lines,
+C<Recall> at a given rank C<r> is the ratio of the number of retrieved documents that
+are relevant to the total number of relevant documents.  The area under the
+C<Precision>--C<Recall> curve is called the C<Average Precision> for a query.  When
+the C<Average Precision> is averaged over all the queries, we obtain what is known as
+C<Mean Average Precision> (MAP).  For an oracle, the value of MAP should be 1.0.  On
+the other hand, for purely random retrieval from a corpus, the value of MAP will be
+inversely proportional to the size of the corpus.  (See the discussion in
+L<https://engineering.purdue.edu/kak/Tutorials/SignificanceTesting.pdf> for further
+explanation on these retrieval precision evaluators.)  This module includes methods
+that allow you to carry out these retrieval accuracy measurements using the relevancy
+judgments supplied through a disk file.  If human-supplied relevancy judgments are
+not available, the module will be happy to estimate relevancies for you just by
+determining the number of query words that exist in a document.  Note, however, that
+relevancy judgments estimated in this manner cannot be trusted. That is because
+ultimately it is the humans who are the best judges of the relevancies of documents
+to queries.  The humans bring to bear semantic considerations on the relevancy
+determination problem that are beyond the scope of this module.
 
 
 =head1 METHODS
 
-The module provides the following methods for constructing VSM and LSA
-models of a corpus, for using the models thus constructed for retrieval,
-and for carrying out precision versus recall calculations for the
-determination of retrieval accuracy on the corpora of interest to you.
+The module provides the following methods for constructing VSM and LSA models of a
+corpus, for using the models thus constructed for retrieval, and for carrying out
+precision versus recall calculations for the determination of retrieval accuracy on
+the corpora of interest to you.
 
 =over
 
 =item B<new():>
 
-A call to C<new()> constructs a new instance of the C<Algorithm::VSM>
-class:
+A call to C<new()> constructs a new instance of the C<Algorithm::VSM> class:
 
     my $vsm = Algorithm::VSM->new( 
                      corpus_directory       => "",
@@ -1579,94 +1562,88 @@ class:
                      debug                  => 0,
               );       
 
-The values shown on the right side of the big arrows are the B<default
-values for the parameters>.  The following nested list will now describe
-each of the constructor parameters:
+The values shown on the right side of the big arrows are the B<default values for the
+parameters>.  The following nested list will now describe each of the constructor
+parameters:
 
 =over 16
 
 =item I<corpus_directory:>
 
-The parameter B<corpus_directory> points to the root of the
-directory of documents for which you want to create a VSM or LSA model.
+The parameter B<corpus_directory> points to the root of the directory of documents
+for which you want to create a VSM or LSA model.
 
 =item I<corpus_vocab_db:>
 
-The parameter B<corpus_vocab_db> is for naming the DBM in which the corpus
-vocabulary will be stored after it is subject to stemming and the
-elimination of stop words.  Once a disk-based VSM model is created and
-stored away in the file named by this parameter and the parameter to be
-described next, it can subsequently be used directly for speedier
-retrieval.
+The parameter B<corpus_vocab_db> is for naming the DBM in which the corpus vocabulary
+will be stored after it is subject to stemming and the elimination of stop words.
+Once a disk-based VSM model is created and stored away in the file named by this
+parameter and the parameter to be described next, it can subsequently be used
+directly for speedier retrieval.
 
 
 =item I<doc_vectors_db:>
 
-The database named by B<doc_vectors_db> stores the document vector
-representation for each document in the corpus.  Each document vector has
-the same size as the corpus-wide vocabulary; each element of such a vector
-is the number of occurrences of the word that corresponds to that position
-in the vocabulary vector.  
+The database named by B<doc_vectors_db> stores the document vector representation for
+each document in the corpus.  Each document vector has the same size as the
+corpus-wide vocabulary; each element of such a vector is the number of occurrences of
+the word that corresponds to that position in the vocabulary vector.
 
 =item I<normalized_doc_vecs_db:>
 
-The database named by B<normalized_doc_vecs_db> stores the normalized
-document vectors.  Normalization consists of factoring out the size of the
-documents by dividing the term frequency for each word in a document by the
-number of words in the document, and then multiplying the result by the idf
-(Inverse Document Frequency) value for the word.
+The database named by B<normalized_doc_vecs_db> stores the normalized document
+vectors.  Normalization consists of factoring out the size of the documents by
+dividing the term frequency for each word in a document by the number of words in the
+document, and then multiplying the result by the idf (Inverse Document Frequency)
+value for the word.
 
 =item I<use_idf_filter>
 
-By default this parameter is set to 1.  If you want to turn off the
-normalization of the document vectors, including turning off the weighting
-of the term frequencies of the words by their idf values, you must set this
-parameter explicitly to 0.
+By default this parameter is set to 1.  If you want to turn off the normalization of
+the document vectors, including turning off the weighting of the term frequencies of
+the words by their idf values, you must set this parameter explicitly to 0.
 
 =item I<stop_words_file>
 
-The parameter B<stop_words_file> is for naming the file that contains the
-stop words that you do not wish to include in the corpus vocabulary.  The
-format of this file must be as shown in the sample file C<stop_words.txt>
-in the 'examples' directory.  
+The parameter B<stop_words_file> is for naming the file that contains the stop words
+that you do not wish to include in the corpus vocabulary.  The format of this file
+must be as shown in the sample file C<stop_words.txt> in the 'examples' directory.
 
 =item I<want_stemming>
 
-The boolean parameter B<want_stemming> determines whether or not the words
-extracted from the documents would be subject to stemming.  As mentioned
-elsewhere, stemming means that related words like 'programming' and
-'programs' would both be reduced to the root word 'program'.
+The boolean parameter B<want_stemming> determines whether or not the words extracted
+from the documents would be subject to stemming.  As mentioned elsewhere, stemming
+means that related words like 'programming' and 'programs' would both be reduced to
+the root word 'program'.
 
 
 =item I<min_word_length> 
 
-The parameter B<min_word_length> sets the minimum number
-of characters in a word in order for it be included in the corpus
-vocabulary.  
+The parameter B<min_word_length> sets the minimum number of characters in a word in
+order for it be included in the corpus vocabulary.
 
 =item I<lsa_svd_threshold>
 
-The parameter B<lsa_svd_threshold> is used for rejecting
-singular values that are smaller than this threshold fraction of the
-largest singular value.  This plays a critical role in creating
-reduced-dimensionality document vectors in LSA modeling of a corpus.  
+The parameter B<lsa_svd_threshold> is used for rejecting singular values that are
+smaller than this threshold fraction of the largest singular value.  This plays a
+critical role in creating reduced-dimensionality document vectors in LSA modeling of
+a corpus.
 
 =item I<query_file>
 
-The parameter B<query_file> points to a file that contains the queries to
-be used for calculating retrieval performance with C<Precision> and
-C<Recall> numbers. The format of the query file must be as shown in the
-sample file C<test_queries.txt> in the 'examples' directory.  
+The parameter B<query_file> points to a file that contains the queries to be used for
+calculating retrieval performance with C<Precision> and C<Recall> numbers. The format
+of the query file must be as shown in the sample file C<test_queries.txt> in the
+'examples' directory.
 
 =item I<relevancy_threshold> 
 
-The constructor parameter B<relevancy_threshold> is used for automatic
-determination of document relevancies to queries on the basis of the number
-of occurrences of query words in a document.  You can exercise control over
-the process of determining relevancy of a document to a query by giving a
-suitable value to the constructor parameter B<relevancy_threshold>.  A
-document is considered relevant to a query only when the document contains
-at least B<relevancy_threshold> number of query words.
+The constructor parameter B<relevancy_threshold> is used for automatic determination
+of document relevancies to queries on the basis of the number of occurrences of query
+words in a document.  You can exercise control over the process of determining
+relevancy of a document to a query by giving a suitable value to the constructor
+parameter B<relevancy_threshold>.  A document is considered relevant to a query only
+when the document contains at least B<relevancy_threshold> number of query words.
 
 =item I<relevancy_file> 
 
@@ -1674,14 +1651,13 @@ The disk file for storing the relevancy judgments.
 
 =item I<max_number_retrievals>
 
-The constructor parameter B<max_number_retrievals> stands for what it
-means.  
+The constructor parameter B<max_number_retrievals> stands for what it means.
 
 =item I<debug>
 
-Finally, when you set the boolean parameter C<debug>, the module outputs a
-very large amount of intermediate results that are generated during model
-construction and during matching a query with the document vectors.
+Finally, when you set the boolean parameter C<debug>, the module outputs a very large
+amount of intermediate results that are generated during model construction and
+during matching a query with the document vectors.
 
 =back
 
@@ -1693,46 +1669,42 @@ construction and during matching a query with the document vectors.
 
 =item B<get_corpus_vocabulary_and_word_counts():>
 
-After you have constructed a new instance of the C<Algorithm::VSM> class,
-you must now scan the corpus documents for constructing the corpus
-vocabulary. This you do by:
+After you have constructed a new instance of the C<Algorithm::VSM> class, you must
+now scan the corpus documents for constructing the corpus vocabulary. This you do by:
 
     $vsm->get_corpus_vocabulary_and_word_counts();
 
-The only time you do NOT need to call this method is when you are using a
-previously constructed disk-stored VSM model for retrieval.
+The only time you do NOT need to call this method is when you are using a previously
+constructed disk-stored VSM model for retrieval.
 
 
 =item B<display_corpus_vocab():>
 
-If you would like to see corpus vocabulary as constructed by the previous
-call, make the call
+If you would like to see corpus vocabulary as constructed by the previous call, make
+the call
 
     $vsm->display_corpus_vocab();
 
-Note that this is a useful thing to do only on small test corpora. If you
-must call this method on a large corpus, you might wish to direct the
-output to a file.  The corpus vocabulary is shown automatically when
-C<debug> option is turned on.
+Note that this is a useful thing to do only on small test corpora. If you must call
+this method on a large corpus, you might wish to direct the output to a file.
 
 =item B<display_inverse_document_frequencies():>
 
-You can display the idf value associated with each word in the corpus
-by 
+You can display the idf value associated with each word in the corpus by
 
     $vsm->display_inverse_document_frequencies();
 
-The idf of a word in the corpus is calculated typically as the logarithm of
-the ratio of the total number of documents in the corpus to the number of
-documents in which the word appears (with protection built in to prevent
-division by zero).  Ideally, if a word appears in all the documents, its
-idf would be small, close to zero. Words with small idf values are
-non-discriminatory and should get reduced weighting in document retrieval.
+The idf of a word in the corpus is calculated typically as the logarithm of the ratio
+of the total number of documents in the corpus to the number of documents in which
+the word appears (with protection built in to prevent division by zero).  Ideally, if
+a word appears in all the documents, its idf would be small, close to zero. Words
+with small idf values are non-discriminatory and should get reduced weighting in
+document retrieval.
 
 =item B<get_all_document_names():>
 
-If you want to get hold of all the filenames in the corpus in your own
-script, you can call
+If you want to get hold of all the filenames in the corpus in your own script, you
+can call
 
     my @docs = @{$vsm->get_all_document_names()};
 
@@ -1740,24 +1712,22 @@ The array on the left will contain an alphabetized list of the files.
 
 =item B<generate_document_vectors():>
 
-This is a necessary step after the vocabulary used by a corpus is
-constructed. (Of course, if you will be doing document retrieval through a
-disk-stored VSM or LSA model, then you do not need to call this method.
-You construct document vectors through the following call:
+This is a necessary step after the vocabulary used by a corpus is constructed. (Of
+course, if you will be doing document retrieval through a disk-stored VSM or LSA
+model, then you do not need to call this method.  You construct document vectors
+through the following call:
 
     $vsm->generate_document_vectors();
 
 =item B<display_doc_vectors():>
 
-If you would like to see the document vectors constructed by the previous
-call, make the call:
+If you would like to see the document vectors constructed by the previous call, make
+the call:
 
     $vsm->display_doc_vectors();
 
-Note that this is a useful thing to do only on small test corpora. If you
-must call this method on a large corpus, you might wish to direct the
-output to a file.  The document vectors are shown automatically when
-C<debug> option is turned on.
+Note that this is a useful thing to do only on small test corpora. If you must call
+this method on a large corpus, you might wish to direct the output to a file.  
 
 =item B<display_normalized_doc_vectors():>
 
@@ -1765,15 +1735,15 @@ If you would like to see the normalized document vectors, make the call:
 
     $vsm->display_normalized_doc_vectors();
 
-See the comment made previously as to what is meant by the normalization of
-a document vector.
+See the comment made previously as to what is meant by the normalization of a
+document vector.
 
 =item B<pairwise_similarity_for_docs():>
 
 =item B<pairwise_similarity_for_normalized_docs():>
 
-If you would like to compare in your own script any two documents in
-the corpus, you can call
+If you would like to compare in your own script any two documents in the corpus, you
+can call
 
     my $similarity = $vsm->pairwise_similarity_for_docs("filename_1", "filename_2");
 
@@ -1781,56 +1751,50 @@ or
 
     my $similarity = $vsm->pairwise_similarity_for_normalized_docs("filename_1", "filename_2");
 
-Both these calls return a number that is the dot product of the two
-document vectors normalized by the product of their magnitudes.  The first
-call uses the regular document vectors and the second the normalized
-document vectors.
+Both these calls return a number that is the dot product of the two document vectors
+normalized by the product of their magnitudes.  The first call uses the regular
+document vectors and the second the normalized document vectors.
 
 =item B<retrieve_with_vsm():>
 
-After you have constructed a VSM model, you call this method for document
-retrieval for a given query C<@query>.  The call syntax is:
+After you have constructed a VSM model, you call this method for document retrieval
+for a given query C<@query>.  The call syntax is:
 
     my $retrievals = $vsm->retrieve_with_vsm( \@query );
 
 The argument, C<@query>, is simply a list of words that you wish to use for
-retrieval. The method returns a hash whose keys are the document names and
-whose values the similarity distance between the document and the query.
-As is commonly the case with VSM, this module uses the cosine similarity
-distance when comparing a document vector with the query vector.
+retrieval. The method returns a hash whose keys are the document names and whose
+values the similarity distance between the document and the query.  As is commonly
+the case with VSM, this module uses the cosine similarity distance when comparing a
+document vector with the query vector.
 
 =item B<display_retrievals( $retrievals ):>
 
-You can display the retrieved document names by calling this method using
-the syntax:
+You can display the retrieved document names by calling this method using the syntax:
 
     $vsm->display_retrievals( $retrievals );
 
-where C<$retrievals> is a reference to the hash returned by a call to one
-of the C<retrieve> methods.  The display method shown here respects the
-retrieval size constraints expressed by the constructor parameter
-C<max_number_retrievals>.
+where C<$retrievals> is a reference to the hash returned by a call to one of the
+C<retrieve> methods.  The display method shown here respects the retrieval size
+constraints expressed by the constructor parameter C<max_number_retrievals>.
 
 =item B<construct_lsa_model():>
 
-If after you have extracted the corpus vocabulary and constructed document
-vectors, you would do your retrieval with LSA modeling, you need to make
-the following call:
+If after you have extracted the corpus vocabulary and constructed document vectors,
+you would do your retrieval with LSA modeling, you need to make the following call:
 
     $vsm->construct_lsa_model();
 
-The SVD decomposition that is carried out in LSA model construction uses
-the constructor parameter C<lsa_svd_threshold> to decide how many of the
-singular values to retain for the LSA model.  A singular is retained only
-if it is larger than the C<lsa_svd_threshold> fraction of the largest
-singular value.
+The SVD decomposition that is carried out in LSA model construction uses the
+constructor parameter C<lsa_svd_threshold> to decide how many of the singular values
+to retain for the LSA model.  A singular is retained only if it is larger than the
+C<lsa_svd_threshold> fraction of the largest singular value.
 
 
 =item B<retrieve_with_lsa():>
 
-After you have built an LSA model through the call to
-C<construct_lsa_model()>, you can retrieve the document names most 
-similar to the query by:
+After you have built an LSA model through the call to C<construct_lsa_model()>, you
+can retrieve the document names most similar to the query by:
 
     my $retrievals = $vsm->retrieve_with_lsa( \@query );
 
@@ -1840,12 +1804,11 @@ C<display_retrievals($retrieval)> method described previously.
 =item B<upload_normalized_vsm_model_from_disk():>
 
 When you invoke the methods C<get_corpus_vocabulary_and_word_counts()> and
-C<generate_document_vectors()>, that automatically deposits the VSM model
-in the database files named with the constructor parameters
-C<corpus_vocab_db>, C<doc_vectors_db> and C<normalized_doc_vecs_db>.
-Subsequently, you can carry out retrieval by directly using this disk-based
-VSM model for speedier performance.  In order to do so, you must upload the
-disk-based model by
+C<generate_document_vectors()>, that automatically deposits the VSM model in the
+database files named with the constructor parameters C<corpus_vocab_db>,
+C<doc_vectors_db> and C<normalized_doc_vecs_db>.  Subsequently, you can carry out
+retrieval by directly using this disk-based VSM model for speedier performance.  In
+order to do so, you must upload the disk-based model by
 
     $vsm->upload_normalized_vsm_model_from_disk();
 
@@ -1858,44 +1821,41 @@ for retrieval and for displaying the results.
 
 =item B<estimate_doc_relevancies():>
 
-Before you can carry out precision and recall calculations to test the
-accuracy of VSM and LSA based retrievals from a corpus, you need to have
-available the relevancy judgments for the queries.  (A relevancy judgment
-for a query is simply the list of documents relevant to that query.)
-Relevancy judgments are commonly supplied by the humans who are familiar
-with the corpus.  But if such human-supplied relevance judgments are not
-available, you can invoke the following method to estimate them:
+Before you can carry out precision and recall calculations to test the accuracy of
+VSM and LSA based retrievals from a corpus, you need to have available the relevancy
+judgments for the queries.  (A relevancy judgment for a query is simply the list of
+documents relevant to that query.)  Relevancy judgments are commonly supplied by the
+humans who are familiar with the corpus.  But if such human-supplied relevance
+judgments are not available, you can invoke the following method to estimate them:
 
     $vsm->estimate_doc_relevancies();
 
-For the above method call, a document is considered to be relevant to a
-query if it contains several of the query words.  As to the minimum number
-of query words that must exist in a document in order for the latter to be
-considered relevant, that is determined by the C<relevancy_threshold>
-parameter in the VSM constructor.
+For the above method call, a document is considered to be relevant to a query if it
+contains several of the query words.  As to the minimum number of query words that
+must exist in a document in order for the latter to be considered relevant, that is
+determined by the C<relevancy_threshold> parameter in the VSM constructor.
 
-But note that this estimation of document relevancies to queries is NOT for
-serious work.  The reason for that is because ultimately it is the humans
-who are the best judges of the relevancies of documents to queries.  The
-humans bring to bear semantic considerations on the relevancy determination
-problem that are beyond the scope of this module.
+But note that this estimation of document relevancies to queries is NOT for serious
+work.  The reason for that is because ultimately it is the humans who are the best
+judges of the relevancies of documents to queries.  The humans bring to bear semantic
+considerations on the relevancy determination problem that are beyond the scope of
+this module.
 
-The generated relevancies are deposited in a file named by the constructor
-parameter C<relevancy_file>.
+The generated relevancies are deposited in a file named by the constructor parameter
+C<relevancy_file>.
 
 =item B<display_doc_relevancies():>
 
-If you would like to see the document relevancies generated by the
-previous method, you can call
+If you would like to see the document relevancies generated by the previous method,
+you can call
 
     $vsm->display_doc_relevancies()
 
 
 =item B<precision_and_recall_calculator():>
 
-After you have created or obtained the relevancy judgments for your test
-queries, you can make the following call to calculate C<Precision@rank> and
-C<Recall@rank>:
+After you have created or obtained the relevancy judgments for your test queries, you
+can make the following call to calculate C<Precision@rank> and C<Recall@rank>:
 
     $vsm->precision_and_recall_calculator('vsm');
 
@@ -1903,14 +1863,13 @@ or
 
     $vsm->precision_and_recall_calculator('lsa');
 
-depending on whether you are testing VSM-based retrieval or LSA-based
-retrieval.
+depending on whether you are testing VSM-based retrieval or LSA-based retrieval.
 
 
 =item B<display_precision_vs_recall_for_queries():>
 
-A call to C<precision_and_recall_calculator()> will normally be followed
-by the following call
+A call to C<precision_and_recall_calculator()> will normally be followed by the
+following call
 
     $vsm->display_precision_vs_recall_for_queries();
 
@@ -1919,19 +1878,19 @@ for displaying the C<Precision@rank> and C<Recall@rank> values.
 
 =item B<display_map_values_for_queries():>
 
-The area under the precision vs. recall curve for a given query is called
-C<Average Precision> for that query.  When this area is averaged over all
-the queries, you get C<MAP> (Mean Average Precision) as a measure of the
-accuracy of the retrieval algorithm.  The C<Average Precision> values for
-the queries and the overall C<MAP> can be printed out by calling
+The area under the precision vs. recall curve for a given query is called C<Average
+Precision> for that query.  When this area is averaged over all the queries, you get
+C<MAP> (Mean Average Precision) as a measure of the accuracy of the retrieval
+algorithm.  The C<Average Precision> values for the queries and the overall C<MAP>
+can be printed out by calling
 
     $vsm->display_map_values_for_queries();
 
 
 =item B<upload_document_relevancies_from_file():>
 
-When human-supplied relevancies are available, you can upload them
-into the program by calling
+When human-supplied relevancies are available, you can upload them into the program
+by calling
 
     $vsm->upload_document_relevancies_from_file();
 
@@ -1940,16 +1899,15 @@ C<relevancy_file> constructor parameter.
 
 =item B<get_query_sorted_average_precision_for_queries():>
 
-If you want to run significance tests on the retrieval accuracies you
-obtain on a given corpus and with different algorithms (VSM or LSA with
-different choices for the constructor parameters), your own script would
-need access to the average precision data for a set of queries. You can get
-hold of this data by calling
+If you want to run significance tests on the retrieval accuracies you obtain on a
+given corpus and with different algorithms (VSM or LSA with different choices for the
+constructor parameters), your own script would need access to the average precision
+data for a set of queries. You can get hold of this data by calling
 
     $vsm->get_query_sorted_average_precision_for_queries();
 
-The script C<significance_testing.pl> in the 'examples' directory shows how
-you can use this method for significance testing.
+The script C<significance_testing.pl> in the 'examples' directory shows how you can
+use this method for significance testing.
 
 
 =back
@@ -1963,14 +1921,13 @@ This module requires the following modules:
     Storable
     PDL
 
-The first two of these are needed for creating disk-based database records
-for the VSM and LSA models.  The third is needed for calculating the SVD of
-the term-frequency matrix. (PDL stands for Perl Data Language.)  
+The first two of these are needed for creating disk-based database records for the
+VSM and LSA models.  The third is needed for calculating the SVD of the
+term-frequency matrix. (PDL stands for Perl Data Language.)
 
 =head1 EXAMPLES
 
-See the 'examples' directory in the distribution for the scripts listed
-below:
+See the 'examples' directory in the distribution for the scripts listed below:
 
 =over
 
@@ -1986,79 +1943,75 @@ For basic LSA-based model construction and retrieval, run the script:
 
     retrieve_with_LSA.pl
 
-Both of the above scripts will store the corpus models created
-in disk-based databases.
+Both of the above scripts will store the corpus models created in disk-based
+databases.
 
 =item B<For VSM-Based Retrieval with a Disk-Stored Model:>
 
-If you have previously run a script like C<retrieve_with_VSM.pl> and
-no intervening code has modified the disk-stored VSM model of the corpus,
-you can run the script
+If you have previously run a script like C<retrieve_with_VSM.pl> and no intervening
+code has modified the disk-stored VSM model of the corpus, you can run the script
 
     retrieve_with_disk_based_VSM.pl
 
-This would obviously work faster at retrieval since the VSM model would NOT
-need to constructed for each new query.
+This would obviously work faster at retrieval since the VSM model would NOT need to
+constructed for each new query.
 
 =item B<For LSA-Based Retrieval with a Disk-Stored Model:>
 
-If you have previously run a script like C<retrieve_with_LSA.pl> and
-no intervening code has modified the disk-stored LSA model of the corpus,
-you can run the script
+If you have previously run a script like C<retrieve_with_LSA.pl> and no intervening
+code has modified the disk-stored LSA model of the corpus, you can run the script
 
     retrieve_with_disk_based_LSA.pl
 
-The retrieval performance of such a script would be faster since the LSA
-model would NOT need to be constructed for each new query.
+The retrieval performance of such a script would be faster since the LSA model would
+NOT need to be constructed for each new query.
 
 =item B<For Precision and Recall Calculations with VSM:>
 
-To experiment with precision and recall calculations for VSM retrieval,
-run the script:
+To experiment with precision and recall calculations for VSM retrieval, run the
+script:
 
     calculate_precision_and_recall_for_VSM.pl
 
-Note that this script will carry out its own estimation of relevancy
-judgments --- which in most cases would not be a safe thing to do.
+Note that this script will carry out its own estimation of relevancy judgments ---
+which in most cases would not be a safe thing to do.
 
 =item B<For Precision and Recall Calculations with LSA:>
 
-To experiment with precision and recall calculations for LSA retrieval,
-run the script:
+To experiment with precision and recall calculations for LSA retrieval, run the
+script:
 
     calculate_precision_and_recall_for_LSA.pl
 
-Note that this script will carry out its own estimation of relevancy
-judgments --- which in most cases would not be a safe thing to do.
+Note that this script will carry out its own estimation of relevancy judgments ---
+which in most cases would not be a safe thing to do.
 
 
 =item B<For Precision and Recall Calculations for VSM with
 Human-Supplied Relevancies:>
 
-Precision and recall calculations for retrieval accuracy determination are
-best carried out with human-supplied judgments of relevancies of the
-documents to queries.  If such judgments are available, run the
-script:
+Precision and recall calculations for retrieval accuracy determination are best
+carried out with human-supplied judgments of relevancies of the documents to queries.
+If such judgments are available, run the script:
 
     calculate_precision_and_recall_from_file_based_relevancies_for_VSM.pl
 
-This script will print out the average precisions for the different test
-queries and calculate the MAP metric of retrieval accuracy.
+This script will print out the average precisions for the different test queries and
+calculate the MAP metric of retrieval accuracy.
 
 =item B<For Precision and Recall Calculations for LSA with
 Human-Supplied Relevancies:>
 
-If human-supplied relevancy judgments are available and you wish to
-experiment with precision and recall calculations for LSA-based retrieval,
-run the script:
+If human-supplied relevancy judgments are available and you wish to experiment with
+precision and recall calculations for LSA-based retrieval, run the script:
 
     calculate_precision_and_recall_from_file_based_relevancies_for_LSA.pl
 
-This script will print out the average precisions for the different test
-queries and calculate the MAP metric of retrieval accuracy.
+This script will print out the average precisions for the different test queries and
+calculate the MAP metric of retrieval accuracy.
 
-=item B<To carry out significance tests on the retrieval precision results
-with Randomization or with Student's Paired t-Test:>
+=item B<To carry out significance tests on the retrieval precision results with
+Randomization or with Student's Paired t-Test:>
 
     significance_testing.pl  randomization
 
@@ -2066,10 +2019,10 @@ or
 
     significance_testing.pl  t-test
 
-Significance testing consists of forming a null hypothesis that the two
-retrieval algorithms you are considering are the same from a black-box
-perspective and then calculating what is known as a C<p-value>.  If the
-C<p-value> is less than, say, 0.05, you reject the null hypothesis.
+Significance testing consists of forming a null hypothesis that the two retrieval
+algorithms you are considering are the same from a black-box perspective and then
+calculating what is known as a C<p-value>.  If the C<p-value> is less than, say,
+0.05, you reject the null hypothesis.
 
 =item B<To calculate a similarity matrix for all the documents in your corpus:>
 
@@ -2079,11 +2032,10 @@ or
 
     calculate_similarity_matrix_for_all_normalized_docs.pl
 
-The former uses regular document vectors for calculating the similarity
-between every pair of documents in the corpus. And the latter uses
-normalized document vectors for the same purpose.  The document order used
-for row and column indexing of the matrix corresponds to the alphabetic
-ordering of the document names in the corpus directory.
+The former uses regular document vectors for calculating the similarity between every
+pair of documents in the corpus. And the latter uses normalized document vectors for
+the same purpose.  The document order used for row and column indexing of the matrix
+corresponds to the alphabetic ordering of the document names in the corpus directory.
 
 =back
 
@@ -2094,55 +2046,74 @@ None by design.
 
 =head1 SO THAT YOU DO NOT LOSE RELEVANCY JUDGMENTS
 
-You have to be careful when carrying out Precision verses Recall
-calculations if you do not wish to lose the previously created relevancy
-judgments. Invoking the method C<estimate_doc_relevancies()> in your own
-script will cause the file C<relevancy.txt> to be overwritten.  If you have
-created a relevancy database and stored it in a file called, say,
-C<relevancy.txt>, you should make a backup copy of this file before
+You have to be careful when carrying out Precision verses Recall calculations if you
+do not wish to lose the previously created relevancy judgments. Invoking the method
+C<estimate_doc_relevancies()> in your own script will cause the file C<relevancy.txt>
+to be overwritten.  If you have created a relevancy database and stored it in a file
+called, say, C<relevancy.txt>, you should make a backup copy of this file before
 executing a script that calls C<estimate_doc_relevancies()>.
 
 =head1 BUGS
 
-Please notify the author if you encounter any bugs.  When sending email,
-please place the string 'VSM' in the subject line to get past my spam
-filter.
+Please notify the author if you encounter any bugs.  When sending email, please place
+the string 'VSM' in the subject line to get past my spam filter.
 
 =head1 INSTALLATION
 
-The usual
+Download the archive from CPAN in any directory of your choice.  Unpack the archive
+with a command that on a Linux machine would look like:
+
+    tar zxvf Algorithm-VSM-1.41.tar.gz
+
+This will create an installation directory for you whose name will be
+C<Algorithm-VSM-1.41>.  Enter this directory and execute the following commands for a
+standard install of the module if you have root privileges:
 
     perl Makefile.PL
     make
     make test
-    make install
+    sudo make install
 
-if you have root access.  If not, 
+If you do not have root privileges, you can carry out a non-standard install the
+module in any directory of your choice by:
 
     perl Makefile.PL prefix=/some/other/directory/
     make
     make test
     make install
 
+With a non-standard install, you may also have to set your PERL5LIB environment
+variable so that this module can find the required other modules. How you do that
+would depend on what platform you are working on.  In order to install this module in
+a Linux machine on which I use tcsh for the shell, I set the PERL5LIB environment
+variable by
+
+    setenv PERL5LIB /some/other/directory/lib64/perl5/:/some/other/directory/share/perl5/
+
+If I used bash, I'd need to declare:
+
+    export PERL5LIB=/some/other/directory/lib64/perl5/:/some/other/directory/share/perl5/
+
+
 =head1 THANKS
 
-Many thanks are owed to Shivani Rao and Bunyamin Sisman for sharing with me
-their deep insights in IR.  Version 1.4 was prompted by Zahn Bozanic's
-interest in similarity matrix characterization of a corpus. Thanks, Zahn!
+Many thanks are owed to Shivani Rao and Bunyamin Sisman for sharing with me their
+deep insights in IR.  Version 1.4 was prompted by Zahn Bozanic's interest in
+similarity matrix characterization of a corpus. Thanks, Zahn!
 
 =head1 AUTHOR
 
 Avinash Kak, kak@purdue.edu
 
-If you send email, please place the string "VSM" in your
-subject line to get past my spam filter.
+If you send email, please place the string "VSM" in your subject line to get past my
+spam filter.
 
 =head1 COPYRIGHT
 
-This library is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+This library is free software; you can redistribute it and/or modify it under the
+same terms as Perl itself.
 
- Copyright 2012 Avinash Kak
+ Copyright 2014 Avinash Kak
 
 =cut
 

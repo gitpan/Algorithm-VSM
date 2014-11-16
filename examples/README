@@ -10,8 +10,8 @@
      When you run the above script, you will be asking the module to
      retrieve the Java files in the 'corpus' directory that match the
      un-commented query shown at the top of the script.  Try running the
-     script with one of other queries by uncommenting the appropriate query
-     line.
+     script with one of the other queries by uncommenting the appropriate
+     query line.
 
 
 
@@ -23,7 +23,7 @@
      previous script, you will be asking the module to retrieve the Java
      files in the 'corpus' directory that match the un-commented query
      shown at the top of the script.  Try running the script with one of
-     other queries by uncommenting the appropriate query line.
+     the other queries by uncommenting the appropriate query line.
 
 
 

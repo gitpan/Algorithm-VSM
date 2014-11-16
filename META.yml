@@ -1,25 +1,24 @@
---- #YAML:1.0
-name:               Algorithm-VSM
-version:            1.4
-abstract:           A Perl module for retrieving files and documents from a software library with VSM and LSA algorithms
+---
+abstract: 'A Perl module for retrieving files and documents from a software library with VSM and LSA algorithms'
 author:
-    - Avinash Kak (kak@purdue.edu)
-license:            unknown
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
+  - 'Avinash Kak (kak@purdue.edu)'
 build_requires:
-    ExtUtils::MakeMaker:  0
-requires:
-    PDL:                2.4.9
-    PDL::IO::Storable:  ~
-    SDBM_File:          1.06
-    Storable:           2.20
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.57_05
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.120921'
+license: unknown
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Algorithm-VSM
+no_index:
+  directory:
+    - t
+    - inc
+requires:
+  PDL: 2.007
+  SDBM_File: 1.06
+  Storable: 2.20
+version: 1.41

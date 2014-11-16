@@ -1,0 +1,43 @@
+{
+   "abstract" : "A Perl module for retrieving files and documents from a software library with VSM and LSA algorithms",
+   "author" : [
+      "Avinash Kak (kak@purdue.edu)"
+   ],
+   "dynamic_config" : 1,
+   "generated_by" : "ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.120921",
+   "license" : [
+      "unknown"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "Algorithm-VSM",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "PDL" : "2.007",
+            "SDBM_File" : "1.06",
+            "Storable" : "2.20"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "version" : "1.41"
+}
