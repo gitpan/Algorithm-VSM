@@ -23,7 +23,7 @@ use Fcntl;
 use Storable;
 use Cwd;
 
-our $VERSION = '1.41';
+our $VERSION = '1.42';
 
 #############################   Constructor  ########################
 
@@ -128,8 +128,27 @@ sub display_corpus_vocab {
         my $outstring = sprintf("%30s     %d", $_,$self->{_vocab_hist}->{$_});
         print "$outstring\n";
     }
+}
+
+sub display_corpus_vocab_size {
+    my $self = shift;
+    die "corpus vocabulary not yet constructed"
+        unless keys %{$self->{_vocab_hist}};
     my $vocab_size = scalar( keys %{$self->{_vocab_hist}} );
     print "\nSize of the corpus vocabulary: $vocab_size\n\n";
+}
+
+sub write_corpus_vocab_to_file {
+    my $self = shift;
+    my $file = shift;
+    die "corpus vocabulary not yet constructed" unless keys %{$self->{_vocab_hist}};
+    open OUT, "> $file" 
+       or die "unable to open for output a file with name `$file': $!";
+    foreach (sort keys %{$self->{_vocab_hist}}){
+        my $outstring = sprintf("%30s     %d", $_,$self->{_vocab_hist}->{$_});
+        print OUT "$outstring\n";
+    }
+    close OUT;
 }
 
 sub display_inverse_document_frequencies {
@@ -269,11 +288,11 @@ sub retrieve_with_vsm {
     my $query = shift;
     print "\nYour query words are: @$query\n" if $self->{_debug};
     if ($self->{_idf_filter_option}) {
-        die "\nYou need to first generate normalized document vectors before you can call  retrieve_with_vsm()\n"
+        die "\nYou need to first generate normalized document vectors before you can call  retrieve_with_vsm()"
             unless scalar(keys %{$self->{_vocab_hist}}) 
                   && scalar(keys %{$self->{_normalized_doc_vecs}});
     } else {
-        die "\nYou need to first generate document vectors before you can call retrieve_with_vsm()\n"
+        die "\nYou need to first generate document vectors before you can call retrieve_with_vsm()"
             unless scalar(keys %{$self->{_vocab_hist}}) 
                   && scalar(keys %{$self->{_corpus_doc_vectors}});
     }
@@ -286,7 +305,7 @@ sub retrieve_with_vsm {
     }
     my @query_word_counts = values %{$self->{_query_vector}};
     my $query_word_count_total = reduce(\@query_word_counts);
-    die "Query does not contain corpus words. Nothing retrieved.\n"
+    die "Query does not contain corpus words. Nothing retrieved."
         unless $query_word_count_total;
     my %retrievals;
     if ($self->{_idf_filter_option}) {
@@ -385,8 +404,8 @@ sub display_retrievals {
 sub _scan_directory {
     my $self = shift;
     my $dir = shift;
+    my $current_dir = cwd;
     chdir $dir or die "Unable to change directory to $dir: $!";
-    $dir = cwd;
     foreach ( glob "*" ) {                                            
         if ( -d and !(-l) ) {
             $self->_scan_directory( $_ );
@@ -406,6 +425,7 @@ sub _scan_directory {
             $self->_construct_doc_vector($_) if $self->{_corpus_vocab_done};
         }
     }
+    chdir $current_dir;
 }
 
 sub _scan_file {
@@ -461,7 +481,6 @@ sub construct_lsa_model {
             push @{$self->{_term_document_matrix}}, $term_frequency_vec;
         }
     }
-#    use PDL;
     my $A = PDL::Basic::transpose( pdl(@{$self->{_term_document_matrix}}) );
     my ($U,$SIGMA,$V) = svd $A;
     print "LSA: Singular Values SIGMA: " . $SIGMA . "\n" if $self->{_debug};
@@ -502,7 +521,6 @@ sub construct_lsa_model {
 }
 
 sub retrieve_with_lsa {
-#    use PDL;
     my $self = shift;
     my $query = shift;
     print "\nYour query words are: @$query\n" if $self->{_debug};
@@ -519,7 +537,7 @@ sub retrieve_with_lsa {
     }
     my @query_word_counts = values %{$self->{_query_vector}};
     my $query_word_count_total = reduce(\@query_word_counts);
-    die "Query does not contain corpus words. Nothing retrieved.\n"
+    die "Query does not contain corpus words. Nothing retrieved."
         unless $query_word_count_total;
     my $query_vec;
     foreach (sort keys %{$self->{_query_vector}}) {
@@ -1394,6 +1412,12 @@ Analysis) algorithms in response to search words.
 
 =head1 CHANGES
 
+Version 1.42 includes two new methods, C<display_corpus_vocab_size()> and
+C<write_corpus_vocab_to_file()>, for those folks who deal with very large datasets.
+You can get a better sense of the overall vocabulary being used by the module for file
+retrieval by examining the contents of a dump file whose name is supplied as
+an argument to C<write_corpus_vocab_to_file()>.
+
 Version 1.41 downshifts the required version of the PDL module. Also cleaned up are
 the dependencies between this module and the submodules of PDL.
 
@@ -1685,8 +1709,29 @@ the call
 
     $vsm->display_corpus_vocab();
 
-Note that this is a useful thing to do only on small test corpora. If you must call
-this method on a large corpus, you might wish to direct the output to a file.
+Note that this is a useful thing to do only on small test corpora. If you need
+to examine the vocabulary for a large corpus, call the two methods listed below.
+
+
+=item B<display_corpus_vocab_size():>
+
+If you would like for the module to print out in your terminal window the size of the
+vocabulary, make the call
+
+    $vsm->display_corpus_vocab_size();
+
+
+=item B<write_corpus_vocab_to_file():>
+
+This is the method to call for large text corpora if you would like to examine the
+vocabulary created. The call syntax is
+
+    $vsm->write_corpus_vocab_to_file($filename);
+
+where C<$filename> is the name of the file that you want the vocabulary to be written
+out to.  This call will also show the frequency of each vocabulary word in your
+corpus.
+
 
 =item B<display_inverse_document_frequencies():>
 
@@ -1701,6 +1746,7 @@ a word appears in all the documents, its idf would be small, close to zero. Word
 with small idf values are non-discriminatory and should get reduced weighting in
 document retrieval.
 
+
 =item B<get_all_document_names():>
 
 If you want to get hold of all the filenames in the corpus in your own script, you
@@ -1710,6 +1756,7 @@ can call
 
 The array on the left will contain an alphabetized list of the files.
 
+
 =item B<generate_document_vectors():>
 
 This is a necessary step after the vocabulary used by a corpus is constructed. (Of
@@ -1718,6 +1765,7 @@ model, then you do not need to call this method.  You construct document vectors
 through the following call:
 
     $vsm->generate_document_vectors();
+
 
 =item B<display_doc_vectors():>
 
@@ -1729,6 +1777,7 @@ the call:
 Note that this is a useful thing to do only on small test corpora. If you must call
 this method on a large corpus, you might wish to direct the output to a file.  
 
+
 =item B<display_normalized_doc_vectors():>
 
 If you would like to see the normalized document vectors, make the call:
@@ -1738,7 +1787,9 @@ If you would like to see the normalized document vectors, make the call:
 See the comment made previously as to what is meant by the normalization of a
 document vector.
 
+
 =item B<pairwise_similarity_for_docs():>
+
 
 =item B<pairwise_similarity_for_normalized_docs():>
 
@@ -1755,6 +1806,7 @@ Both these calls return a number that is the dot product of the two document vec
 normalized by the product of their magnitudes.  The first call uses the regular
 document vectors and the second the normalized document vectors.
 
+
 =item B<retrieve_with_vsm():>
 
 After you have constructed a VSM model, you call this method for document retrieval
@@ -1767,6 +1819,7 @@ retrieval. The method returns a hash whose keys are the document names and whose
 values the similarity distance between the document and the query.  As is commonly
 the case with VSM, this module uses the cosine similarity distance when comparing a
 document vector with the query vector.
+
 
 =item B<display_retrievals( $retrievals ):>
 
@@ -1801,6 +1854,7 @@ can retrieve the document names most similar to the query by:
 Subsequently, you can display the retrievals by calling the
 C<display_retrievals($retrieval)> method described previously.
 
+
 =item B<upload_normalized_vsm_model_from_disk():>
 
 When you invoke the methods C<get_corpus_vocabulary_and_word_counts()> and
@@ -1818,6 +1872,7 @@ Subsequently you call
     $vsm->display_retrievals( $retrievals );
 
 for retrieval and for displaying the results.  
+
 
 =item B<estimate_doc_relevancies():>
 
@@ -1843,6 +1898,7 @@ this module.
 
 The generated relevancies are deposited in a file named by the constructor parameter
 C<relevancy_file>.
+
 
 =item B<display_doc_relevancies():>
 
@@ -2063,10 +2119,10 @@ the string 'VSM' in the subject line to get past my spam filter.
 Download the archive from CPAN in any directory of your choice.  Unpack the archive
 with a command that on a Linux machine would look like:
 
-    tar zxvf Algorithm-VSM-1.41.tar.gz
+    tar zxvf Algorithm-VSM-1.42.tar.gz
 
 This will create an installation directory for you whose name will be
-C<Algorithm-VSM-1.41>.  Enter this directory and execute the following commands for a
+C<Algorithm-VSM-1.42>.  Enter this directory and execute the following commands for a
 standard install of the module if you have root privileges:
 
     perl Makefile.PL

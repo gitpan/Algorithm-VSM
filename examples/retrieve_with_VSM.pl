@@ -59,6 +59,13 @@ $vsm->get_corpus_vocabulary_and_word_counts();
 #    vocabulary:
 #$vsm->display_corpus_vocab();
 
+#    Uncomment the following statement if you would like to see the corpus
+#    vocabulary size:
+#$vsm->display_corpus_vocab_size();
+
+#    Uncomment the following statement if you would like to dump the corpus
+#    vocabulary in a file that you supply as an argument in the following call:
+#$vsm->write_corpus_vocab_to_file("vocabulary_dump.txt");
 
 #    Uncomment the following statement if you would like to see the inverse
 #    document frequencies:

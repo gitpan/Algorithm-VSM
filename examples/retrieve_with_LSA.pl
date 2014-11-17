@@ -51,8 +51,17 @@ my $lsa = Algorithm::VSM->new(
 
 $lsa->get_corpus_vocabulary_and_word_counts();
 
-#   Uncomment the following if you would like to see the corpus vocabulary:
+#    Uncomment the following statement if you would like to see the corpus
+#    vocabulary:
 #$lsa->display_corpus_vocab();
+
+#    Uncomment the following statement if you would like to see the corpus
+#    vocabulary size:
+#$lsa->display_corpus_vocab_size();
+
+#    Uncomment the following statement if you would like to dump the corpus
+#    vocabulary in a file that you supply as an argument in the following call:
+#$lsa->write_corpus_vocab_to_file("vocabulary_dump.txt");
 
 #    Uncomment the following statement if you would like to see the inverse
 #    document frequencies:
