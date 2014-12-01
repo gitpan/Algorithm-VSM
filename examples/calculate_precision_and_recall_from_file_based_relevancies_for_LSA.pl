@@ -52,12 +52,12 @@ my $lsa = Algorithm::VSM->new(
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
+                   break_camelcased_and_underscored  => 1,  #default is 1
                    lsa_svd_threshold   => 0.01,     # Used for rejecting singular
                                                     # values that are smaller than
                                                     # this threshold fraction of
                                                     # the largest singular value.
                    relevancy_file      => $relevancy_file,
-#                   debug               => 1,
           );
 
 $lsa->get_corpus_vocabulary_and_word_counts();

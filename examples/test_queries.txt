@@ -10,21 +10,21 @@ q1:  scope declaration assign member local test void static
 
 q2:  program ListIterator add ArrayList args
 
-q3:  string getallchars throw ioexception distinct treemap histogram map
+q3:  string getAllChars throw IOException distinct TreeMap histogram map
 
-q4:  Cloneable clonenotsupportedexception xobj_clone array random printstring
+q4:  Cloneable CloneNotSupportedException xobj_clone array random printstring
 
-q5:  getName user maryjo jojo studentuser user derived base invoke
+q5:  getName user maryjo jojo StudentUser user derived base invoke
 
-q6:  swing actionPerformed closeButton startButton windowclosing greetingbutton
+q6:  swing actionPerformed closeButton startButton windowClosing greetingButton
 
-q7:  pane mytextpanel jpanel insertUpdate
+q7:  pane MyTextPanel jpanel insertUpdate
 
 q8:  threading ThreadFileIO extends datafile readOneString InterruptedException
 
 q9:  synchronized withdraw balance Withdrawer random Math Account Depositor
 
-q10: chatserver ServerSocket exception clientHandler clientList ArrayList
+q10: ChatServer ServerSocket exception clientHandler clientList ArrayList
 
 q11: ListIterator InputStreamReader getOutputStream exception flush 
 

@@ -25,6 +25,7 @@ my $vsm = Algorithm::VSM->new(
                    corpus_directory         => $corpus_dir,
                    stop_words_file          => $stop_words_file,
                    want_stemming            => 1, 
+                   break_camelcased_and_underscored  => 1,  #default is 1
           );
 
 $vsm->get_corpus_vocabulary_and_word_counts();

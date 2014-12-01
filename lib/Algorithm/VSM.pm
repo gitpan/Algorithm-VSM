@@ -23,9 +23,13 @@ use Fcntl;
 use Storable;
 use Cwd;
 
-our $VERSION = '1.42';
+our $VERSION = '1.50';
 
-#############################   Constructor  ########################
+# from camelcase splits from perlmonks:
+my $_regex = 
+           qr/[[:lower:]0-9]+|[[:upper:]0-9](?:[[:upper:]0-9]+|[[:lower:]0-9]*)(?=$|[[:upper:]0-9])/; 
+
+###################################   Constructor  #######################################
 
 #  Constructor for constructing a VSM or LSA model of a corpus.  The model
 #  instance returned by the constructor can be used for retrieving
@@ -39,6 +43,10 @@ sub new {
     bless {
         _corpus_directory       =>  $args{corpus_directory} 
                                         || "",
+        _save_model_on_disk     =>  exists $args{save_model_on_disk} ?
+                                          $args{save_model_on_disk} : 1,
+        _break_camelcased_and_underscored  => exists $args{break_camelcased_and_underscored} ?
+                                              $args{break_camelcased_and_underscored} : 1,
         _corpus_vocab_db        =>  $args{corpus_vocab_db} 
                                         || "corpus_vocab_db",
         _doc_vectors_db         =>  $args{doc_vectors_db} || "doc_vectors_db",
@@ -81,7 +89,7 @@ sub new {
 }
 
 
-#################    Get corpus vocabulary and word counts  ################
+######################    Get corpus vocabulary and word counts  #########################
 
 sub get_corpus_vocabulary_and_word_counts {
     my $self = shift;
@@ -89,12 +97,6 @@ sub get_corpus_vocabulary_and_word_counts {
         unless $self->{_corpus_directory};
     print "Scanning the directory '$self->{_corpus_directory}' for\n" .
         "  model construction\n\n" if $self->{_debug};
-    unlink glob "$self->{_corpus_vocab_db}.*";   
-    unlink glob "$self->{_doc_vectors_db}.*";   
-    unlink glob "$self->{_normalized_doc_vecs_db}.*";   
-    tie %{$self->{_vocab_hist_on_disk}}, 'SDBM_File',  
-             $self->{_corpus_vocab_db}, O_RDWR|O_CREAT, 0640
-            or die "Can't create DBM files: $!";       
     $self->_scan_directory( $self->{_corpus_directory} );
     $self->_drop_stop_words() if $self->{_stop_words_file};
     if ($self->{_debug}) {
@@ -102,10 +104,18 @@ sub get_corpus_vocabulary_and_word_counts {
             printf( "%s\t%d\n", $_, $self->{_vocab_hist_on_disk}->{$_} );    
         }
     }
-    foreach (keys %{$self->{_vocab_hist_on_disk}}) {
-        $self->{_vocab_hist}->{$_} = $self->{_vocab_hist_on_disk}->{$_};
+    if ($self->{_save_model_on_disk}) {
+        unlink glob "$self->{_corpus_vocab_db}.*";   
+        unlink glob "$self->{_doc_vectors_db}.*";   
+        unlink glob "$self->{_normalized_doc_vecs_db}.*";   
+        tie %{$self->{_vocab_hist_on_disk}}, 'SDBM_File',  
+                 $self->{_corpus_vocab_db}, O_RDWR|O_CREAT, 0640
+                or die "Can't create DBM files: $!";       
+        foreach (keys %{$self->{_vocab_hist}}) {
+            $self->{_vocab_hist_on_disk}->{$_} = $self->{_vocab_hist}->{$_};
+        }
+        untie %{$self->{_vocab_hist_on_disk}};
     }
-    untie %{$self->{_vocab_hist_on_disk}};
     $self->{_corpus_vocab_done} = 1;
     $self->{_vocab_size} = scalar( keys %{$self->{_vocab_hist}} );
     print "\n\nVocabulary size:  $self->{_vocab_size}\n\n"
@@ -176,7 +186,7 @@ sub get_all_document_names {
     return \@all_files;
 }
 
-####################  Generate Document Vectors  ########################
+############################  Generate Document Vectors  #################################
 
 sub generate_document_vectors {
     my $self = shift;
@@ -186,17 +196,23 @@ sub generate_document_vectors {
     }
     $self->_scan_directory( $self->{_corpus_directory} );
     chdir $self->{_working_directory};
-    eval {
-        store( $self->{_corpus_doc_vectors}, $self->{_doc_vectors_db} );
-    };
-    if ($@) {
-        print "Something went wrong with disk storage of document vectors: $@";
-    }
-    eval {
-        store($self->{_normalized_doc_vecs}, $self->{_normalized_doc_vecs_db});
-    };
-    if ($@) {
-        print "Something wrong with disk storage of normalized doc vecs: $@";
+    if ($self->{_save_model_on_disk}) {
+        die "You did not specify in the constructor call the names for the diskfiles " .
+            "for storing the disk-based hash tables consisting of document vectors " .
+            "and their normalized versions" 
+            unless $self->{_doc_vectors_db} && $self->{_normalized_doc_vecs_db};
+        eval {
+            store( $self->{_corpus_doc_vectors}, $self->{_doc_vectors_db} );
+        };
+        if ($@) {
+            print "Something went wrong with disk storage of document vectors: $@";
+        }
+        eval {
+            store($self->{_normalized_doc_vecs}, $self->{_normalized_doc_vecs_db});
+        };
+        if ($@) {
+            print "Something wrong with disk storage of normalized doc vecs: $@";
+        }
     }
 }
 
@@ -232,8 +248,7 @@ sub display_normalized_doc_vectors {
     }
 }
 
-
-#################  Calculate Pairwise Document Similarities  ################
+########################  Calculate Pairwise Document Similarities  ######################
 
 # Returns the similarity score for two documents whose actual names are
 # are supplied as its two arguments.
@@ -281,11 +296,22 @@ sub pairwise_similarity_for_normalized_docs {
     return $product;
 }
 
-#########################  Retrieve with VSM Model  #########################
+###############################  Retrieve with VSM Model  ################################
 
 sub retrieve_with_vsm {
     my $self = shift;
     my $query = shift;
+    my @clean_words;
+    my $min = $self->{_min_word_length};
+    if ($self->{_break_camelcased_and_underscored}) {
+        my @brokenup = grep $_, split /\W|_|\s+/, "@$query";
+        @clean_words = map {$_ =~ /$_regex/g} @brokenup;
+        @clean_words = grep $_, map {$_ =~ /([[:lower:]0-9]{$min,})/i;$1?"\L$1":''} @clean_words;
+    } else {
+        my @brokenup = split /\"|\'|\.|\(|\)|\[|\]|\\|\/|\s+/, "@$query";
+        @clean_words = grep $_, map { /([a-z0-9_]{$min,})/i;$1 } @brokenup;
+    }
+    $query = \@clean_words;
     print "\nYour query words are: @$query\n" if $self->{_debug};
     if ($self->{_idf_filter_option}) {
         die "\nYou need to first generate normalized document vectors before you can call  retrieve_with_vsm()"
@@ -332,8 +358,7 @@ sub retrieve_with_vsm {
     return \%retrievals;
 }
 
-
-############### Upload a Previously Constructed Model  #################
+######################### Upload a Previously Constructed Model  #########################
 
 sub upload_vsm_model_from_disk {
     my $self = shift;
@@ -384,7 +409,7 @@ sub upload_normalized_vsm_model_from_disk {
     untie %{$self->{_vocab_hist_on_disk}};
 }
 
-##################### Display Retrieval Results  #######################
+############################## Display Retrieval Results  ################################
 
 sub display_retrievals {
     my $self = shift;
@@ -399,7 +424,7 @@ sub display_retrievals {
     print "\n\n";
 }
 
-#####################    Directory Scanner      #######################
+###############################    Directory Scanner      ################################
 
 sub _scan_directory {
     my $self = shift;
@@ -435,21 +460,29 @@ sub _scan_file {
     my $min = $self->{_min_word_length};
     my %uniques = ();
     while (<IN>) {
-        chomp;                                                 
-        my @brokenup = split /\"|\'|\.|\(|\)|\[|\]|\\|\/|\s+/, $_;
-        my @clean_words = grep $_, map { /([a-z0-9_]{$min,})/i;$1 } @brokenup;
+        next if /^[ ]*\r?\n?$/;
+        $_ =~ s/\r?\n?$//;
+        my @clean_words;
+        if ($self->{_break_camelcased_and_underscored}) {
+            my @brokenup = grep $_, split /\W|_|\s+/, $_;
+            @clean_words = map {$_ =~ /$_regex/g} @brokenup;
+            @clean_words = grep $_, map {$_ =~ /([[:lower:]0-9]{$min,})/i;$1?"\L$1":''} @clean_words;
+        } else {
+            my @brokenup = split /\"|\'|\.|\(|\)|\[|\]|\\|\/|\s+/, $_;
+            @clean_words = grep $_, map { /([a-z0-9_]{$min,})/i;$1 } @brokenup;
+        }
         next unless @clean_words;
         @clean_words = grep $_, map &simple_stemmer($_), @clean_words
                if $self->{_want_stemming};
-        map { $self->{_vocab_hist_on_disk}->{"\L$_"}++ } grep $_, @clean_words;
-        for (@clean_words) { $uniques{"\L$_"}++ };
+        map { $self->{_vocab_hist}->{$_}++ } grep $_, @clean_words;
+        for (@clean_words) { $uniques{$_}++ };
     }
     close( IN );
-    map { $self->{_vocab_idf_hist}->{"\L$_"}++ } keys %uniques;
+    map { $self->{_vocab_idf_hist}->{$_}++ } keys %uniques;
     $self->{_total_num_of_docs}++;
 }
 
-##################### LSA Modeling and Retrieval ##########################
+############################## LSA Modeling and Retrieval ################################
 
 sub construct_lsa_model {
     my $self = shift;
@@ -523,7 +556,18 @@ sub construct_lsa_model {
 sub retrieve_with_lsa {
     my $self = shift;
     my $query = shift;
-    print "\nYour query words are: @$query\n" if $self->{_debug};
+    my @clean_words;
+    my $min = $self->{_min_word_length};
+    if ($self->{_break_camelcased_and_underscored}) {
+        my @brokenup = grep $_, split /\W|_|\s+/, "@$query";
+        @clean_words = map {$_ =~ /$_regex/g} @brokenup;
+        @clean_words = grep $_, map {$_ =~ /([[:lower:]0-9]{$min,})/i;$1?"\L$1":''} @clean_words;
+    } else {
+        my @brokenup = split /\"|\'|\.|\(|\)|\[|\]|\\|\/|\s+/, "@$query";
+        @clean_words = grep $_, map { /([a-z0-9_]{$min,})/i;$1 } @brokenup;
+    }
+    $query = \@clean_words;
+    print "\nYour processed query words are: @$query\n" if $self->{_debug};
     die "Your vocabulary histogram is empty" 
         unless scalar(keys %{$self->{_vocab_hist}});
     die "You must first construct an LSA model" 
@@ -621,9 +665,7 @@ sub _construct_doc_vector {
     $self->{_normalized_doc_vecs}->{$file_path_name} = \%normalized_doc_vec;
 }
 
-
-
-#########################   Drop Stop Words  ##########################
+###################################   Drop Stop Words  ###################################
 
 sub _drop_stop_words {
     my $self = shift;
@@ -633,13 +675,12 @@ sub _drop_stop_words {
         next if /^#/;
         next if /^[ ]*$/;
         chomp;
-        delete $self->{_vocab_hist_on_disk}->{$_} 
-                if exists $self->{_vocab_hist_on_disk}->{$_};
+        delete $self->{_vocab_hist}->{$_} if exists $self->{_vocab_hist}->{$_};
         unshift @{$self->{_stop_words}}, $_;
     }
 }
 
-#########################  Support Methods  #########################
+###################################  Support Methods  ####################################
 
 sub _doc_vec_comparator {
     my $self = shift;
@@ -689,8 +730,7 @@ sub _similarity_to_query {
     return $product;
 }
 
-
-##############  Relevance Judgments for Testing Purposes   ###############
+######################  Relevance Judgments for Testing Purposes   #######################
 
 ## IMPORTANT: This estimation of document relevancies to queries is NOT for
 ##            serious work.  A document is considered to be relevant to a
@@ -824,8 +864,7 @@ sub _scan_file_for_rels {
     }
 }
 
-
-#################   Calculate Precision versus Recall   ####################
+#########################   Calculate Precision versus Recall   ##########################
 
 sub precision_and_recall_calculator {
     my $self = shift;
@@ -1011,8 +1050,7 @@ sub get_query_sorted_average_precision_for_queries {
     return \@average_precisions_for_queries;
 }
 
-
-###########################  Utility Routines  #####################
+###################################  Utility Routines  ###################################
 
 sub _check_for_illegal_params {
     my @params = @_;
@@ -1029,6 +1067,8 @@ sub _check_for_illegal_params {
                             want_stemming
                             lsa_svd_threshold
                             relevancy_threshold
+                            break_camelcased_and_underscored
+                            save_model_on_disk
                             debug
                           /;
     my $found_match_flag;
@@ -1143,6 +1183,7 @@ sub get_integer_suffix {
 1;
 
 =pod
+
 =head1 NAME
 
 Algorithm::VSM --- A Perl module for retrieving files and documents from a
@@ -1156,7 +1197,7 @@ Analysis) algorithms in response to search words.
         use Algorithm::VSM;
 
         my $corpus_dir = "corpus";
-        my @query = qw/ program listiterator add arraylist args /;
+        my @query = qw/ program ListIterator add ArrayList args /;
         my $stop_words_file = "stop_words.txt";  
         my $corpus_vocab_db = "corpus_vocab_db";
         my $doc_vectors_db  = "doc_vectors_db"; 
@@ -1167,11 +1208,15 @@ Analysis) algorithms in response to search words.
                            doc_vectors_db           => $doc_vectors_db, 
                            normalized_doc_vecs_db   => $normalized_doc_vecs_db,
                            stop_words_file          => $stop_words_file,
+                           save_model_on_disk       => 0,  
+                           break_camelcased_and_underscored  => 1, 
                            max_number_retrievals    => 10,
                            want_stemming            => 1,  
         );
         $vsm->get_corpus_vocabulary_and_word_counts();
         $vsm->display_corpus_vocab();
+        $vsm->display_corpus_vocab_size();
+        $vsm->write_corpus_vocab_to_file("vocabulary_dump.txt");
         $vsm->display_inverse_document_frequencies();
         $vsm->generate_document_vectors();
         $vsm->display_doc_vectors();
@@ -1180,18 +1225,22 @@ Analysis) algorithms in response to search words.
         $vsm->display_retrievals( $retrievals );
 
      The constructor parameter 'corpus_directory' is for naming the root of
-     the directory whose VSM model you wish to construct.  The parameters
-     'corpus_vocab_db', 'doc_vectors_db', and 'normalized_doc_vecs_db'
-     are for naming disk-based databases in which the VSM model will be 
-     stored.  Subsequently, these databases can be used for much faster 
-     retrieval from the same corpus.  The parameter 'want_stemming' 
-     means that you would want the words in the documents to be stemmed 
-     to their root forms before the VSM model is constructed.  Stemming 
-     will reduce all words such as 'programming,' 'programs,' 'program,' 
-     etc. to the same root word 'program.'  The functions 
-     display_corpus_vocab() and display_doc_vectors() are there only for 
-     testing purposes with small corpora.  If you must use them for large 
-     libraries/corpora, you might wish to redirect the output to a file.  
+     the directory whose VSM model you wish to construct.  The optional
+     parameters 'corpus_vocab_db', 'doc_vectors_db', and
+     'normalized_doc_vecs_db' are for naming disk-based databases in which
+     the VSM model will be stored.  Subsequently, these databases can be
+     used for much faster retrieval from the same corpus.  You need to set
+     these parameters only if you have set the save_model_on_disk option in
+     the constructor call.  The parameter 'want_stemming' means that you
+     would want the words in the documents to be stemmed to their root
+     forms before the VSM model is constructed.  Stemming will reduce all
+     words such as 'programming,' 'programs,' 'program,' etc. to the same
+     root word 'program.'  The parameter break_camelcased_and_underscored
+     when set will cause all underscored and camel-cased words to be split.
+     The functions display_corpus_vocab() and display_doc_vectors() are
+     there only for testing purposes with small corpora.  If you must use
+     them for large libraries/corpora, you might wish to redirect the
+     output to a file.
 
      By default, a call to any of the constructors will calculate
      normalized term-frequency vectors for the documents.  Normalization
@@ -1212,10 +1261,15 @@ Analysis) algorithms in response to search words.
                            normalized_doc_vecs_db   => $normalized_doc_vecs_db,
                            stop_words_file          => $stop_words_file,
                            want_stemming            => 1,
+                           save_model_on_disk       => 0,  
+                           break_camelcased_and_underscored  => 1, 
                            lsa_svd_threshold        => 0.01, 
                            max_number_retrievals    => 10,
         );
         $lsa->get_corpus_vocabulary_and_word_counts();
+        $lsa->display_corpus_vocab();
+        $lsa->display_corpus_vocab_size();
+        $lsa->write_corpus_vocab_to_file("vocabulary_dump.txt");
         $lsa->generate_document_vectors();
         $lsa->construct_lsa_model();
         my $retrievals = $lsa->retrieve_for_query_with_lsa( \@query );
@@ -1228,15 +1282,16 @@ Analysis) algorithms in response to search words.
     will be retained after we have carried out an SVD decomposition of the
     term-frequency matrix for the documents in the corpus.  Singular values
     smaller than this threshold fraction of the largest value are rejected.
-    The parameters that end in '_db' are for naming the database files in
-    which the basic information about the model is stored, as explained for
+    The parameters that end in '_db' are optional and are there for naming
+    the database files in which the basic information about the model is
+    stored when the parameter save_model_on_disk is set, as explained for
     the previous constructor call.
 
 
 
   # FOR USING A PREVIOUSLY CONSTRUCTED VSM MODEL FOR RETRIEVAL:
 
-        my @query = qw/ program listiterator add arraylist args /;
+        my @query = qw/ program ListIterator add ArrayList args /;
         my $corpus_vocab_db = "corpus_vocab_db";
         my $doc_vectors_db  = "doc_vectors_db";
         my $normalized_doc_vecs_db  = "normalized_doc_vecs_db";
@@ -1244,6 +1299,7 @@ Analysis) algorithms in response to search words.
                            corpus_vocab_db          => $corpus_vocab_db, 
                            doc_vectors_db           => $doc_vectors_db,
                            normalized_doc_vecs_db   => $normalized_doc_vecs_db,
+                           break_camelcased_and_underscored  => 1, 
                            max_number_retrieval s   => 10,
         );
         $vsm->upload_normalized_vsm_model_from_disk();
@@ -1261,6 +1317,7 @@ Analysis) algorithms in response to search words.
                            corpus_vocab_db          => $corpus_vocab_db,
                            doc_vectors_db           => $doc_vectors_db,
                            normalized_doc_vecs_db   => $normalized_doc_vecs_db,
+                           break_camelcased_and_underscored  => 1, 
                            max_number_retrievals    => 10,
         );
         $lsa->upload_normalized_vsm_model_from_disk();
@@ -1286,6 +1343,7 @@ Analysis) algorithms in response to search words.
                            query_file          => $query_file,
                            want_stemming       => 1,
                            relevancy_threshold => 5, 
+                           break_camelcased_and_underscored  => 1, 
                            relevancy_file      => $relevancy_file, 
         );
 
@@ -1320,6 +1378,7 @@ Analysis) algorithms in response to search words.
                            want_stemming       => 1,
                            lsa_svd_threshold   => 0.01,
                            relevancy_threshold => 5,
+                           break_camelcased_and_underscored  => 1, 
                            relevancy_file      => $relevancy_file,
         );
 
@@ -1357,6 +1416,7 @@ Analysis) algorithms in response to search words.
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
+                   break_camelcased_and_underscored  => 1, 
                    relevancy_file      => $relevancy_file,
         );
         $vsm->get_corpus_vocabulary_and_word_counts();
@@ -1390,6 +1450,7 @@ Analysis) algorithms in response to search words.
                    query_file          => $query_file,
                    want_stemming       => 1,
                    lsa_svd_threshold   => 0.01,
+                   break_camelcased_and_underscored  => 1, 
                    relevancy_file      => $relevancy_file,
         );
 
@@ -1410,13 +1471,41 @@ Analysis) algorithms in response to search words.
     constructor parameters such as 'lsa_svd_threshold'.
 
 
+
+  # FOR MEASURING THE SIMILARITY MATRIX FOR A SET OF DOCUMENTS:
+
+        my $corpus_dir = "corpus";
+        my $stop_words_file = "stop_words.txt";
+        my $vsm = Algorithm::VSM->new(
+                   corpus_directory         => $corpus_dir,
+                   stop_words_file          => $stop_words_file,
+                   want_stemming            => 1,
+                   break_camelcased_and_underscored  => 1, 
+        );
+        $vsm->get_corpus_vocabulary_and_word_counts();
+        $vsm->generate_document_vectors();
+        # code for calculating pairwise similarities as shown in the
+        # script calculate_similarity_matrix_for_all_docs.pl in the
+        # examples directory.  This script makes calls to
+        #
+        #   $vsm->pairwise_similarity_for_docs($docs[$i], $docs[$j]);        
+        #
+        # for every pair of documents.
+
 =head1 CHANGES
+
+Version 1.50 incorporates a couple of new features: (1) You now have the
+option to split camel-cased and underscored words for constructing your
+vocabulary set; and (2) Storing the VSM and LSA models in database files on
+the disk is now optional.  The second feature, in particular, should prove
+useful to those who are using this module for large collections of
+documents.
 
 Version 1.42 includes two new methods, C<display_corpus_vocab_size()> and
 C<write_corpus_vocab_to_file()>, for those folks who deal with very large datasets.
-You can get a better sense of the overall vocabulary being used by the module for file
-retrieval by examining the contents of a dump file whose name is supplied as
-an argument to C<write_corpus_vocab_to_file()>.
+You can get a better sense of the overall vocabulary being used by the module for
+file retrieval by examining the contents of a dump file whose name is supplied as an
+argument to C<write_corpus_vocab_to_file()>.
 
 Version 1.41 downshifts the required version of the PDL module. Also cleaned up are
 the dependencies between this module and the submodules of PDL.
@@ -1570,20 +1659,21 @@ the corpora of interest to you.
 A call to C<new()> constructs a new instance of the C<Algorithm::VSM> class:
 
     my $vsm = Algorithm::VSM->new( 
+                     break_camelcased_and_underscored  => 1, 
                      corpus_directory       => "",
                      corpus_vocab_db        => "corpus_vocab_db",
                      doc_vectors_db         => "doc_vectors_db",
-                     normalized_doc_vecs_db => "normalized_doc_vecs_db",
-                     use_idf_filter         => 1,
-                     stop_words_file        => "", 
-                     want_stemming          => 1,
-                     min_word_length        => 4,
                      lsa_svd_threshold      => 0.01, 
-                     query_file             => "",  
-                     relevancy_threshold    => 5, 
-                     relevancy_file         => $relevancy_file,
                      max_number_retrievals  => 10,
-                     debug                  => 0,
+                     min_word_length        => 4,
+                     normalized_doc_vecs_db => "normalized_doc_vecs_db",
+                     query_file             => "",  
+                     relevancy_file         => $relevancy_file,
+                     relevancy_threshold    => 5, 
+                     save_model_on_disk     => 1,  
+                     stop_words_file        => "", 
+                     use_idf_filter         => 1,
+                     want_stemming          => 1,
               );       
 
 The values shown on the right side of the big arrows are the B<default values for the
@@ -1591,6 +1681,13 @@ parameters>.  The following nested list will now describe each of the constructo
 parameters:
 
 =over 16
+
+=item I<break_camelcased_and_underscored:>
+
+The parameter B<break_camelcased_and_underscored> when set causes the
+underscored and camel-cased words to be split.  By default the parameter is
+set.  So if you don't want such words to be split, you must set it
+explicitly to 0.
 
 =item I<corpus_directory:>
 
@@ -1605,13 +1702,28 @@ Once a disk-based VSM model is created and stored away in the file named by this
 parameter and the parameter to be described next, it can subsequently be used
 directly for speedier retrieval.
 
-
 =item I<doc_vectors_db:>
 
 The database named by B<doc_vectors_db> stores the document vector representation for
 each document in the corpus.  Each document vector has the same size as the
 corpus-wide vocabulary; each element of such a vector is the number of occurrences of
 the word that corresponds to that position in the vocabulary vector.
+
+=item I<lsa_svd_threshold:>
+
+The parameter B<lsa_svd_threshold> is used for rejecting singular values that are
+smaller than this threshold fraction of the largest singular value.  This plays a
+critical role in creating reduced-dimensionality document vectors in LSA modeling of
+a corpus.
+
+=item I<max_number_retrievals:>
+
+The constructor parameter B<max_number_retrievals> stands for what it means.
+
+=item I<min_word_length:> 
+
+The parameter B<min_word_length> sets the minimum number of characters in a
+word in order for it to be included in the corpus vocabulary.
 
 =item I<normalized_doc_vecs_db:>
 
@@ -1621,46 +1733,18 @@ dividing the term frequency for each word in a document by the number of words i
 document, and then multiplying the result by the idf (Inverse Document Frequency)
 value for the word.
 
-=item I<use_idf_filter>
-
-By default this parameter is set to 1.  If you want to turn off the normalization of
-the document vectors, including turning off the weighting of the term frequencies of
-the words by their idf values, you must set this parameter explicitly to 0.
-
-=item I<stop_words_file>
-
-The parameter B<stop_words_file> is for naming the file that contains the stop words
-that you do not wish to include in the corpus vocabulary.  The format of this file
-must be as shown in the sample file C<stop_words.txt> in the 'examples' directory.
-
-=item I<want_stemming>
-
-The boolean parameter B<want_stemming> determines whether or not the words extracted
-from the documents would be subject to stemming.  As mentioned elsewhere, stemming
-means that related words like 'programming' and 'programs' would both be reduced to
-the root word 'program'.
-
-
-=item I<min_word_length> 
-
-The parameter B<min_word_length> sets the minimum number of characters in a word in
-order for it be included in the corpus vocabulary.
-
-=item I<lsa_svd_threshold>
-
-The parameter B<lsa_svd_threshold> is used for rejecting singular values that are
-smaller than this threshold fraction of the largest singular value.  This plays a
-critical role in creating reduced-dimensionality document vectors in LSA modeling of
-a corpus.
-
-=item I<query_file>
+=item I<query_file:>
 
 The parameter B<query_file> points to a file that contains the queries to be used for
 calculating retrieval performance with C<Precision> and C<Recall> numbers. The format
 of the query file must be as shown in the sample file C<test_queries.txt> in the
 'examples' directory.
 
-=item I<relevancy_threshold> 
+=item I<relevancy_file:> 
+
+This option names the disk file for storing the relevancy judgments.
+
+=item I<relevancy_threshold:> 
 
 The constructor parameter B<relevancy_threshold> is used for automatic determination
 of document relevancies to queries on the basis of the number of occurrences of query
@@ -1669,19 +1753,31 @@ relevancy of a document to a query by giving a suitable value to the constructor
 parameter B<relevancy_threshold>.  A document is considered relevant to a query only
 when the document contains at least B<relevancy_threshold> number of query words.
 
-=item I<relevancy_file> 
+=item I<save_model_on_disk:>
 
-The disk file for storing the relevancy judgments.
+The constructor parameter B<save_model_on_disk> will cause the basic
+information about the VSM and the LSA models to be stored on the disk.
+Subsequently, any retrievals can be carried out from the disk-based model.
 
-=item I<max_number_retrievals>
+=item I<stop_words_file:>
 
-The constructor parameter B<max_number_retrievals> stands for what it means.
+The parameter B<stop_words_file> is for naming the file that contains the stop words
+that you do not wish to include in the corpus vocabulary.  The format of this file
+must be as shown in the sample file C<stop_words.txt> in the 'examples' directory.
 
-=item I<debug>
+=item I<use_idf_filter:>
 
-Finally, when you set the boolean parameter C<debug>, the module outputs a very large
-amount of intermediate results that are generated during model construction and
-during matching a query with the document vectors.
+The constructor parameter B<use_idf_filter> is set by default.  If you want
+to turn off the normalization of the document vectors, including turning
+off the weighting of the term frequencies of the words by their idf values,
+you must set this parameter explicitly to 0.
+
+=item I<want_stemming:>
+
+The boolean parameter B<want_stemming> determines whether or not the words extracted
+from the documents would be subject to stemming.  As mentioned elsewhere, stemming
+means that related words like 'programming' and 'programs' would both be reduced to
+the root word 'program'.
 
 =back
 
@@ -1691,15 +1787,18 @@ during matching a query with the document vectors.
 
 =end html
 
-=item B<get_corpus_vocabulary_and_word_counts():>
+=item B<construct_lsa_model():>
 
-After you have constructed a new instance of the C<Algorithm::VSM> class, you must
-now scan the corpus documents for constructing the corpus vocabulary. This you do by:
+You call this subroutine for constructing an LSA model for your corpus
+after you have extracted the corpus vocabulary and constructed document
+vectors:
 
-    $vsm->get_corpus_vocabulary_and_word_counts();
+    $vsm->construct_lsa_model();
 
-The only time you do NOT need to call this method is when you are using a previously
-constructed disk-stored VSM model for retrieval.
+The SVD decomposition that is carried out in LSA model construction uses the
+constructor parameter C<lsa_svd_threshold> to decide how many of the singular values
+to retain for the LSA model.  A singular is retained only if it is larger than the
+C<lsa_svd_threshold> fraction of the largest singular value.
 
 
 =item B<display_corpus_vocab():>
@@ -1721,16 +1820,23 @@ vocabulary, make the call
     $vsm->display_corpus_vocab_size();
 
 
-=item B<write_corpus_vocab_to_file():>
+=item B<display_doc_relevancies():>
 
-This is the method to call for large text corpora if you would like to examine the
-vocabulary created. The call syntax is
+If you would like to see the document relevancies generated by the previous method,
+you can call
 
-    $vsm->write_corpus_vocab_to_file($filename);
+    $vsm->display_doc_relevancies()
 
-where C<$filename> is the name of the file that you want the vocabulary to be written
-out to.  This call will also show the frequency of each vocabulary word in your
-corpus.
+
+=item B<display_doc_vectors():>
+
+If you would like to see the document vectors constructed by the previous call, make
+the call:
+
+    $vsm->display_doc_vectors();
+
+Note that this is a useful thing to do only on small test corpora. If you must call
+this method on a large corpus, you might wish to direct the output to a file.  
 
 
 =item B<display_inverse_document_frequencies():>
@@ -1747,35 +1853,15 @@ with small idf values are non-discriminatory and should get reduced weighting in
 document retrieval.
 
 
-=item B<get_all_document_names():>
+=item B<display_map_values_for_queries():>
 
-If you want to get hold of all the filenames in the corpus in your own script, you
-can call
+The area under the precision vs. recall curve for a given query is called C<Average
+Precision> for that query.  When this area is averaged over all the queries, you get
+C<MAP> (Mean Average Precision) as a measure of the accuracy of the retrieval
+algorithm.  The C<Average Precision> values for the queries and the overall C<MAP>
+can be printed out by calling
 
-    my @docs = @{$vsm->get_all_document_names()};
-
-The array on the left will contain an alphabetized list of the files.
-
-
-=item B<generate_document_vectors():>
-
-This is a necessary step after the vocabulary used by a corpus is constructed. (Of
-course, if you will be doing document retrieval through a disk-stored VSM or LSA
-model, then you do not need to call this method.  You construct document vectors
-through the following call:
-
-    $vsm->generate_document_vectors();
-
-
-=item B<display_doc_vectors():>
-
-If you would like to see the document vectors constructed by the previous call, make
-the call:
-
-    $vsm->display_doc_vectors();
-
-Note that this is a useful thing to do only on small test corpora. If you must call
-this method on a large corpus, you might wish to direct the output to a file.  
+    $vsm->display_map_values_for_queries();
 
 
 =item B<display_normalized_doc_vectors():>
@@ -1788,37 +1874,14 @@ See the comment made previously as to what is meant by the normalization of a
 document vector.
 
 
-=item B<pairwise_similarity_for_docs():>
+=item B<display_precision_vs_recall_for_queries():>
 
+A call to C<precision_and_recall_calculator()> will normally be followed by the
+following call
 
-=item B<pairwise_similarity_for_normalized_docs():>
+    $vsm->display_precision_vs_recall_for_queries();
 
-If you would like to compare in your own script any two documents in the corpus, you
-can call
-
-    my $similarity = $vsm->pairwise_similarity_for_docs("filename_1", "filename_2");
-
-or
-
-    my $similarity = $vsm->pairwise_similarity_for_normalized_docs("filename_1", "filename_2");
-
-Both these calls return a number that is the dot product of the two document vectors
-normalized by the product of their magnitudes.  The first call uses the regular
-document vectors and the second the normalized document vectors.
-
-
-=item B<retrieve_with_vsm():>
-
-After you have constructed a VSM model, you call this method for document retrieval
-for a given query C<@query>.  The call syntax is:
-
-    my $retrievals = $vsm->retrieve_with_vsm( \@query );
-
-The argument, C<@query>, is simply a list of words that you wish to use for
-retrieval. The method returns a hash whose keys are the document names and whose
-values the similarity distance between the document and the query.  As is commonly
-the case with VSM, this module uses the cosine similarity distance when comparing a
-document vector with the query vector.
+for displaying the C<Precision@rank> and C<Recall@rank> values.
 
 
 =item B<display_retrievals( $retrievals ):>
@@ -1830,48 +1893,6 @@ You can display the retrieved document names by calling this method using the sy
 where C<$retrievals> is a reference to the hash returned by a call to one of the
 C<retrieve> methods.  The display method shown here respects the retrieval size
 constraints expressed by the constructor parameter C<max_number_retrievals>.
-
-=item B<construct_lsa_model():>
-
-If after you have extracted the corpus vocabulary and constructed document vectors,
-you would do your retrieval with LSA modeling, you need to make the following call:
-
-    $vsm->construct_lsa_model();
-
-The SVD decomposition that is carried out in LSA model construction uses the
-constructor parameter C<lsa_svd_threshold> to decide how many of the singular values
-to retain for the LSA model.  A singular is retained only if it is larger than the
-C<lsa_svd_threshold> fraction of the largest singular value.
-
-
-=item B<retrieve_with_lsa():>
-
-After you have built an LSA model through the call to C<construct_lsa_model()>, you
-can retrieve the document names most similar to the query by:
-
-    my $retrievals = $vsm->retrieve_with_lsa( \@query );
-
-Subsequently, you can display the retrievals by calling the
-C<display_retrievals($retrieval)> method described previously.
-
-
-=item B<upload_normalized_vsm_model_from_disk():>
-
-When you invoke the methods C<get_corpus_vocabulary_and_word_counts()> and
-C<generate_document_vectors()>, that automatically deposits the VSM model in the
-database files named with the constructor parameters C<corpus_vocab_db>,
-C<doc_vectors_db> and C<normalized_doc_vecs_db>.  Subsequently, you can carry out
-retrieval by directly using this disk-based VSM model for speedier performance.  In
-order to do so, you must upload the disk-based model by
-
-    $vsm->upload_normalized_vsm_model_from_disk();
-
-Subsequently you call 
-
-    my $retrievals = $vsm->retrieve_with_vsm( \@query );
-    $vsm->display_retrievals( $retrievals );
-
-for retrieval and for displaying the results.  
 
 
 =item B<estimate_doc_relevancies():>
@@ -1900,58 +1921,36 @@ The generated relevancies are deposited in a file named by the constructor param
 C<relevancy_file>.
 
 
-=item B<display_doc_relevancies():>
+=item B<get_all_document_names():>
 
-If you would like to see the document relevancies generated by the previous method,
-you can call
+If you want to get hold of all the filenames in the corpus in your own script, you
+can call
 
-    $vsm->display_doc_relevancies()
+    my @docs = @{$vsm->get_all_document_names()};
 
-
-=item B<precision_and_recall_calculator():>
-
-After you have created or obtained the relevancy judgments for your test queries, you
-can make the following call to calculate C<Precision@rank> and C<Recall@rank>:
-
-    $vsm->precision_and_recall_calculator('vsm');
-
-or 
-
-    $vsm->precision_and_recall_calculator('lsa');
-
-depending on whether you are testing VSM-based retrieval or LSA-based retrieval.
+The array on the left will contain an alphabetized list of the files.
 
 
-=item B<display_precision_vs_recall_for_queries():>
+=item B<generate_document_vectors():>
 
-A call to C<precision_and_recall_calculator()> will normally be followed by the
-following call
+This is a necessary step after the vocabulary used by a corpus is constructed. (Of
+course, if you will be doing document retrieval through a disk-stored VSM or LSA
+model, then you do not need to call this method.  You construct document vectors
+through the following call:
 
-    $vsm->display_precision_vs_recall_for_queries();
-
-for displaying the C<Precision@rank> and C<Recall@rank> values.
-
-
-=item B<display_map_values_for_queries():>
-
-The area under the precision vs. recall curve for a given query is called C<Average
-Precision> for that query.  When this area is averaged over all the queries, you get
-C<MAP> (Mean Average Precision) as a measure of the accuracy of the retrieval
-algorithm.  The C<Average Precision> values for the queries and the overall C<MAP>
-can be printed out by calling
-
-    $vsm->display_map_values_for_queries();
+    $vsm->generate_document_vectors();
 
 
-=item B<upload_document_relevancies_from_file():>
+=item B<get_corpus_vocabulary_and_word_counts():>
 
-When human-supplied relevancies are available, you can upload them into the program
-by calling
+After you have constructed a new instance of the C<Algorithm::VSM> class, you must
+now scan the corpus documents for constructing the corpus vocabulary. This you do by:
 
-    $vsm->upload_document_relevancies_from_file();
+    $vsm->get_corpus_vocabulary_and_word_counts();
 
-These relevance judgments will be read from a file that is named with the
-C<relevancy_file> constructor parameter.
+The only time you do NOT need to call this method is when you are using a previously
+constructed disk-stored VSM model for retrieval.
+
 
 =item B<get_query_sorted_average_precision_for_queries():>
 
@@ -1964,6 +1963,100 @@ data for a set of queries. You can get hold of this data by calling
 
 The script C<significance_testing.pl> in the 'examples' directory shows how you can
 use this method for significance testing.
+
+
+=item B<pairwise_similarity_for_docs():>
+
+=item B<pairwise_similarity_for_normalized_docs():>
+
+If you would like to compare in your own script any two documents in the corpus, you
+can call
+
+    my $similarity = $vsm->pairwise_similarity_for_docs("filename_1", "filename_2");
+or
+    my $similarity = $vsm->pairwise_similarity_for_normalized_docs("filename_1", "filename_2");
+
+Both these calls return a number that is the dot product of the two document vectors
+normalized by the product of their magnitudes.  The first call uses the regular
+document vectors and the second the normalized document vectors.
+
+
+=item B<precision_and_recall_calculator():>
+
+After you have created or obtained the relevancy judgments for your test queries, you
+can make the following call to calculate C<Precision@rank> and C<Recall@rank>:
+
+    $vsm->precision_and_recall_calculator('vsm');
+or 
+    $vsm->precision_and_recall_calculator('lsa');
+
+depending on whether you are testing VSM-based retrieval or LSA-based retrieval.
+
+=item B<retrieve_with_lsa():>
+
+After you have built an LSA model through the call to C<construct_lsa_model()>, you
+can retrieve the document names most similar to the query by:
+
+    my $retrievals = $vsm->retrieve_with_lsa( \@query );
+
+Subsequently, you can display the retrievals by calling the
+C<display_retrievals($retrieval)> method described previously.
+
+
+=item B<retrieve_with_vsm():>
+
+After you have constructed a VSM model, you call this method for document retrieval
+for a given query C<@query>.  The call syntax is:
+
+    my $retrievals = $vsm->retrieve_with_vsm( \@query );
+
+The argument, C<@query>, is simply a list of words that you wish to use for
+retrieval. The method returns a hash whose keys are the document names and whose
+values the similarity distance between the document and the query.  As is commonly
+the case with VSM, this module uses the cosine similarity distance when comparing a
+document vector with the query vector.
+
+
+=item B<upload_document_relevancies_from_file():>
+
+When human-supplied relevancies are available, you can upload them into the program
+by calling
+
+    $vsm->upload_document_relevancies_from_file();
+
+These relevance judgments will be read from a file that is named with the
+C<relevancy_file> constructor parameter.
+
+
+=item B<upload_normalized_vsm_model_from_disk():>
+
+When you invoke the methods C<get_corpus_vocabulary_and_word_counts()> and
+C<generate_document_vectors()>, that automatically deposits the VSM model in the
+database files named with the constructor parameters C<corpus_vocab_db>,
+C<doc_vectors_db> and C<normalized_doc_vecs_db>.  Subsequently, you can carry out
+retrieval by directly using this disk-based VSM model for speedier performance.  In
+order to do so, you must upload the disk-based model by
+
+    $vsm->upload_normalized_vsm_model_from_disk();
+
+Subsequently you call 
+
+    my $retrievals = $vsm->retrieve_with_vsm( \@query );
+    $vsm->display_retrievals( $retrievals );
+
+for retrieval and for displaying the results.  
+
+
+=item B<write_corpus_vocab_to_file():>
+
+This is the method to call for large text corpora if you would like to examine the
+vocabulary created. The call syntax is
+
+    $vsm->write_corpus_vocab_to_file($filename);
+
+where C<$filename> is the name of the file that you want the vocabulary to be written
+out to.  This call will also show the frequency of each vocabulary word in your
+corpus.
 
 
 =back
@@ -2119,10 +2212,10 @@ the string 'VSM' in the subject line to get past my spam filter.
 Download the archive from CPAN in any directory of your choice.  Unpack the archive
 with a command that on a Linux machine would look like:
 
-    tar zxvf Algorithm-VSM-1.42.tar.gz
+    tar zxvf Algorithm-VSM-1.50.tar.gz
 
 This will create an installation directory for you whose name will be
-C<Algorithm-VSM-1.42>.  Enter this directory and execute the following commands for a
+C<Algorithm-VSM-1.50>.  Enter this directory and execute the following commands for a
 standard install of the module if you have root privileges:
 
     perl Makefile.PL

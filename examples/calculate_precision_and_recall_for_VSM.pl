@@ -7,6 +7,10 @@
 use strict;
 use Algorithm::VSM;
 
+##    This is a self-contained script for precision-and-recall calculatins with
+##    VSM.  Therefore, it is NOT necessary that your first create the disk-based
+##    hash tables by calling retrieve_with_VSM.pl
+
 my $corpus_dir = "corpus";                     # This is the directory containing
                                                # the corpus
 #my $corpus_dir = "corpus_with_java_and_cpp";
@@ -14,14 +18,12 @@ my $corpus_dir = "corpus";                     # This is the directory containin
 #my $corpus_dir = "microcorpus";
 
 my $corpus_vocab_db = "corpus_vocab_db";       # The corpus-wide histogram of the
-                                               # is stored in this DBM file for
-                                               # future use if so needed.
+                                               # vocabulary is stored in this 
+                                               # DBM file.
 
 my $doc_vectors_db  = "doc_vectors_db";        # Using the Storable module, we
                                                # store all the doc vectors in 
-                                               # this diskfile in case the user
-                                               # would want to use vectors 
-                                               # directly off the disk.
+                                               # this diskfile.
 
 my $stop_words_file = "stop_words.txt";        # Will typically include the 
                                                # keywords of the programming
@@ -30,7 +32,7 @@ my $stop_words_file = "stop_words.txt";        # Will typically include the
 my $query_file      = "test_queries.txt";      # This file contains the queries
                                                # to be used for precision vs.
                                                # recall analysis.  Its format
-                                               # must be as shown test_queries.txt
+                                               # must be as shown in test_queries.txt
 
 my $relevancy_file   = "relevancy.txt";        # The generated relevancies will
                                                # be stored in this file.
@@ -42,6 +44,7 @@ my $vsm = Algorithm::VSM->new(
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
+                   break_camelcased_and_underscored  => 1,  #default is 1
                    relevancy_threshold => 5,    # Used when estimating relevancies
                                                 # with the method 
                                                 # estimate_doc_relevancies().  A
@@ -51,7 +54,6 @@ my $vsm = Algorithm::VSM->new(
                    relevancy_file      => $relevancy_file,   # Relevancy judgments
                                                              # are deposited in 
                                                              # this file.
-#                   debug              => 1,
           );
 
 $vsm->get_corpus_vocabulary_and_word_counts();

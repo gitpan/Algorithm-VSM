@@ -21,4 +21,4 @@ requires:
   PDL: 2.007
   SDBM_File: 1.06
   Storable: 2.20
-version: 1.42
+version: 1.50

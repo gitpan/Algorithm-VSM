@@ -52,9 +52,9 @@ my $lsa1 = Algorithm::VSM->new(
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
+                   break_camelcased_and_underscored  => 1,  #default is 1
                    lsa_svd_threshold   => $THRESHOLD_1,
                    relevancy_file      => $relevancy_file,
-#                   debug               => 1,
           );
 
 $lsa1->get_corpus_vocabulary_and_word_counts();

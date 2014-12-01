@@ -30,7 +30,7 @@ my $stop_words_file = "stop_words.txt";        # Will typically include the
 my $query_file      = "test_queries.txt";      # This file contains the queries
                                                # to be used for precision vs.
                                                # recall analysis.  Its format
-                                               # must be as shown test_queries.txt
+                                               # must be as shown in test_queries.txt
 
 my $relevancy_file   = "relevancy.txt";        # The humans-supplied relevancies
                                                # will be read from this file.
@@ -42,8 +42,8 @@ my $vsm = Algorithm::VSM->new(
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
+                   break_camelcased_and_underscored  => 1,  #default is 1
                    relevancy_file      => $relevancy_file,
-#                   debug               => 1,
           );
 
 $vsm->get_corpus_vocabulary_and_word_counts();

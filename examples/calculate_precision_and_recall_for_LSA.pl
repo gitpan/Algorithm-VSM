@@ -4,6 +4,10 @@
 
 #use lib '../blib/lib', '../blib/arch';
 
+##    This is a self-contained script for precision-and-recall calculatins with
+##    LSA.  Therefore, it is NOT necessary that your first create the disk-based
+##    hash tables by calling retrieve_with_LSA.pl
+
 use strict;
 use Algorithm::VSM;
 
@@ -14,14 +18,12 @@ my $corpus_dir = "corpus";                     # This is the directory containin
 #my $corpus_dir = "microcorpus";
 
 my $corpus_vocab_db = "corpus_vocab_db";       # The corpus-wide histogram of the
-                                               # is stored in this DBM file for
-                                               # future use if so needed.
+                                               # vocabulary is stored in this 
+                                               # DBM file.
 
 my $doc_vectors_db  = "doc_vectors_db";        # Using the Storable module, we
                                                # store all the doc vectors in 
-                                               # this diskfile in case the user
-                                               # would want to use vectors 
-                                               # directly off the disk.
+                                               # this diskfile.
 
 my $normalized_doc_vecs_db = "normalized_doc_vecs_db";
                                                # Using the Storable module, we
@@ -39,7 +41,7 @@ my $stop_words_file = "stop_words.txt";        # Will typically include the
 my $query_file      = "test_queries.txt";      # This file contains the queries
                                                # to be used for precision vs.
                                                # recall analysis.  Its format
-                                               # must be as shown test_queries.txt
+                                               # must be as shown in test_queries.txt
 
 my $relevancy_file   = "relevancy.txt";        # The generated relevancies will
                                                # be stored in this file.
@@ -52,6 +54,7 @@ my $lsa = Algorithm::VSM->new(
                    stop_words_file     => $stop_words_file,
                    query_file          => $query_file,
                    want_stemming       => 1,
+                   break_camelcased_and_underscored  => 1,
                    lsa_svd_threshold   => 0.05,     # Used for rejecting singular
                                                     # values that are smaller than
                                                     # this threshold fraction of
